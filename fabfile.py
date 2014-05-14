@@ -9,52 +9,78 @@ from fabric.api import roles
 from fabric.api import execute
 from os import path
 
-from time import sleep
+import time
 
-env.hosts=["172.31.0.134","172.31.0.143","172.31.0.144"]
+with open('slaves','r') as f:
+    env.hosts = [line[:-1] for line in f]
 
 env.roledefs['master'] = [env.hosts[0]]
 
 CODE_DIR = "~/cassandra"
 PID_FILE = "/tmp/cassandra.pid"
+BASE_DIR = "/home/jgpaiva/nas/autoreplicator/"
 
 @parallel
 def killall():
+    '''kill all java processes'''
     with settings(warn_only=True):
-        sudo("killall java")
+        sudo("killall -q java || true")
 
 @parallel
 def get_code():
+    '''update git'''
     with cd(CODE_DIR):
-        run("git pull")
+        run("git pull origin")
 
 @parallel
 def compile_code():
+    '''clean and compile cassandra code'''
     with cd(CODE_DIR):
-        run("ant clean")
-        run("ant build")
+        run("ant -q clean > /dev/null")
+        run("ant -q build > /dev/null")
 
 @parallel
 def clear_logs():
-    with settings(warn_only=True):
-        sudo("rm /var/log/cassandra/system.log")
+    '''delete cassandra logs'''
+    sudo("rm -f /var/log/cassandra/system.log")
 
-def start_cassandra():
-    sleep(5)
+def start():
+    '''start cassandra in all nodes in order'''
+    time.sleep(5)
     with cd(CODE_DIR):
-        sudo("screen -d -m /home/jgpaiva/cassandra/bin/cassandra -f")
+        sudo("screen -d -m /home/jgpaiva/cassandra/bin/cassandra -f",pty=False)
 
-def clean_cassandra():
+def clean():
+    '''delete all cassandra persistent state'''
     with cd(CODE_DIR):
         sudo("rm -rf /var/lib/cassandra/")
 
+@roles('master')
 def setup_cassandra():
-    execute(config_cassandra)
+    '''get cassandra ready to run from zero'''
+    execute(config)
     execute(prepare)
-    execute(start_cassandra)
+    execute(clean)
+    execute(start)
     execute(setup_ycsb)
 
-def config_cassandra():
+@parallel
+def config_git():
+    '''setup git on hosts'''
+    for repo,branch in [('cassandra','cassandra-2.1'),('YCSB','master')]:
+        run("git init {0}".format(repo))
+        with cd(repo):
+            run("git remote add origin ssh://cloudtm.ist.utl.pt{0} ".format(path.join(BASE_DIR,repo)))
+            run("git fetch --all")
+            run("git checkout {0}".format(branch))
+
+@parallel
+def delete_git():
+    run("rm -rf cassandra")
+    run("rm -rf YCSB")
+
+def config():
+    '''setup cassandra configuration parameters'''
     with cd(path.join(CODE_DIR,'conf')):
         run('''sed -i 's/seeds:.*/seeds: "{0}"/' cassandra.yaml'''.format(env.roledefs['master'][0]))
         run('''sed -i "s/^listen_address:.*/listen_address: {0}/" cassandra.yaml'''.format(env.host_string))
@@ -62,6 +88,7 @@ def config_cassandra():
 
 @roles('master')
 def setup_ycsb():
+    '''setup cassandra tables for ycsb'''
     with cd(path.join(CODE_DIR,'bin')):
         run('''./cassandra-cli --host {0}'''.format(env.roledefs['master'][0]) +
 r'''<<EOF
@@ -72,8 +99,9 @@ exit;
 EOF
 ''')
 
-@parallel
+@roles('master')
 def prepare():
+    '''boot cassandra from its persistent state'''
     execute(killall)
     execute(clear_logs)
     execute(get_code)
