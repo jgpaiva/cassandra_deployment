@@ -50,6 +50,7 @@ def start():
     with cd(CODE_DIR):
         sudo("screen -d -m /home/jgpaiva/cassandra/bin/cassandra -f",pty=False)
 
+@parallel
 def clean():
     '''delete all cassandra persistent state'''
     with cd(CODE_DIR):
@@ -81,6 +82,7 @@ def delete_git():
     run("rm -rf cassandra")
     run("rm -rf YCSB")
 
+@parallel
 def config():
     '''setup cassandra configuration parameters'''
     with cd(path.join(CODE_DIR,'conf')):
