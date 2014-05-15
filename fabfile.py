@@ -46,7 +46,7 @@ def clear_logs():
 
 def start():
     '''start cassandra in all nodes in order'''
-    time.sleep(5)
+    time.sleep(10)
     with cd(CODE_DIR):
         sudo("screen -d -m /home/jgpaiva/cassandra/bin/cassandra -f",pty=False)
 
@@ -58,10 +58,12 @@ def clean():
 @roles('master')
 def setup_cassandra():
     '''get cassandra ready to run from zero'''
+    execute(config_git)
     execute(config)
     execute(prepare)
     execute(clean)
     execute(start)
+    time.sleep(60)
     execute(setup_ycsb)
 
 @parallel
