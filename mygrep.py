@@ -26,7 +26,7 @@ for path in argv:
     vals = []
     with open(path,'r') as f:
         for line in f:
-            match = re.search(".*" + expression + ".*",line)
+            match = re.search(expression,line)
             if match:
                 val = rx.findall(match.group(0))
                 vals.append(float(val[-1]))

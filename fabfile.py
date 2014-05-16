@@ -10,12 +10,12 @@ from fabric.api import task
 from fabric.api import hide
 from fabric.api import serial
 from os import path
-from environment import CODE_DIR,YCSB_CODE_DIR
+from environment import CODE_DIR,YCSB_CODE_DIR,THREADS
 from environment import cassandra_settings
 
-from clean import killall,clear_logs,clear_state
+from clean import killall, clear_logs, clear_state
 from collect import collect_results
-from handle_git import get_code, compile_code, config_git
+from handle_git import get_code, compile_code, config_git, compile_ycsb
 
 import time
 
@@ -60,58 +60,59 @@ def start():
 @parallel
 def do_ycsb(arg):
     with cd(YCSB_CODE_DIR):
-        run('./bin/ycsb {1} cassandra-10 -p hosts={0} -P workloads/workloadb > /tmp/{1}.out'.format(env.host_string,arg))
-
-@task
-@roles('master')
-def prepare():
-    '''boot cassandra from its persistent state'''
-    execute(killall)
-    execute(clear_logs)
-    execute(get_code)
-    execute(config)
-    execute(compile_code)
+        run('./bin/ycsb {1} cassandra-10 -threads {2} -p hosts={0} -P workloads/workloadb > /tmp/{1}.out'.format(env.host_string,arg,THREADS))
 
 @task
 @roles('master')
 def setup_cassandra():
     '''get cassandra ready to run from zero'''
     execute(config_git)
-    execute(config)
-    execute(prepare)
+
     execute(clear_state)
+    execute(clear_logs)
     execute(killall)
+
+    execute(get_code)
+    execute(config)
+    execute(compile_code)
+    execute(compile_ycsb)
+
     execute(start)
-    time.sleep(60)
+    time.sleep(30)
     execute(setup_ycsb)
+    time.sleep(30)
 
 def benchmark_round():
     execute(clear_state)
-    execute(config)
-    execute(prepare)
+    execute(clear_logs)
     execute(killall)
+
+    execute(get_code)
+    execute(config)
+    execute(compile_code)
+
     execute(start)
     time.sleep(30)
     execute(setup_ycsb)
     time.sleep(30)
+
     execute(do_ycsb,'load')
-    execute(prepare)
     execute(killall)
+
     execute(start)
     time.sleep(30)
     execute(do_ycsb,'run')
+
     execute(collect_results)
     execute(killall)
 
 @task
 @roles('master')
 def benchmark():
-    cassandra_settings.max_items_for_large_replication_degree = 40
+    cassandra_settings.max_items_for_large_replication_degree = 0
+    cassandra_settings.large_replication_degree = 3
+    benchmark_round()
     cassandra_settings.large_replication_degree = 4
     benchmark_round()
-    cassandra_settings.large_replication_degree = 6
-    benchmark_round()
-    cassandra_settings.large_replication_degree = 9
-    benchmark_round()
-    cassandra_settings.max_items_for_large_replication_degree = 0
+    cassandra_settings.large_replication_degree = 8
     benchmark_round()
