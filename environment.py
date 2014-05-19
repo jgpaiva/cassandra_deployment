@@ -4,7 +4,6 @@ BASE_GIT_DIR = "/home/jgpaiva/nas/autoreplicator/"
 LOG_FILE = "/var/log/cassandra/system.log"
 SERVER_URL = "cloudtm.ist.utl.pt"
 CASSANDRA_VAR = "/var/lib/cassandra/"
-THREADS = 30
 
 class DecentRepr(type):
       def __repr__(self):
@@ -19,3 +18,4 @@ class cassandra_settings(object):
     max_items_for_large_replication_degree = 20
     replication_factor = 2
     large_replication_degree = 4
+    threads = 30

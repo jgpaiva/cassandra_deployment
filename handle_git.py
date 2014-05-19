@@ -13,11 +13,13 @@ def get_code():
     with hide('stdout'):
         with cd(CODE_DIR):
             run("git reset --hard")
+            run("git fetch -q origin")
             if cassandra_settings.run_original:
-                run("git checkout -q 11827f0d7e0d50565f276a7aefe9a88873529ba7")
-            else:
                 run("git checkout -q cassandra-2.1")
-                run("git pull -q origin")
+                run("git pull -q origin cassandra-2.1")
+            else:
+                run("git checkout -q autoreplicator")
+                run("git pull -q origin autoreplicator")
         with cd(YCSB_CODE_DIR):
             run("git checkout -q master")
             run("git pull -q origin")
@@ -26,6 +28,7 @@ def get_code():
 def compile_code():
     '''clean and compile cassandra code'''
     with cd(CODE_DIR):
+        run("ant -q clean > /dev/null")
         run("ant -q build > /dev/null")
 
 @parallel

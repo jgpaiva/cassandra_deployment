@@ -10,7 +10,7 @@ from fabric.api import task
 from fabric.api import hide
 from fabric.api import serial
 from os import path
-from environment import CODE_DIR,YCSB_CODE_DIR,THREADS
+from environment import CODE_DIR,YCSB_CODE_DIR
 from environment import cassandra_settings
 
 from clean import killall, clear_logs, clear_state
@@ -18,6 +18,7 @@ from collect import collect_results
 from handle_git import get_code, compile_code, config_git, compile_ycsb
 
 import time
+from datetime import datetime as dt
 
 with open('slaves','r') as f:
     env.hosts = [line[:-1] for line in f]
@@ -60,7 +61,7 @@ def start():
 @parallel
 def do_ycsb(arg):
     with cd(YCSB_CODE_DIR):
-        run('./bin/ycsb {1} cassandra-10 -threads {2} -p hosts={0} -P workloads/workloadb > /tmp/{1}.out'.format(env.host_string,arg,THREADS))
+        run('./bin/ycsb {1} cassandra-10 -threads {2} -p hosts={0} -P workloads/workloadb > /tmp/{1}.out'.format(env.host_string,arg,cassandra_settings.threads))
 
 @task
 @roles('master')
@@ -82,37 +83,48 @@ def setup_cassandra():
     execute(setup_ycsb)
     time.sleep(30)
 
+def print_time():
+    print str(dt.now().strftime('%Y-%m-%d %H:%M.%S'))
+
 def benchmark_round():
+    print_time()
     execute(clear_state)
     execute(clear_logs)
     execute(killall)
 
-    execute(get_code)
     execute(config)
-    execute(compile_code)
 
+    print_time()
     execute(start)
     time.sleep(30)
     execute(setup_ycsb)
     time.sleep(30)
 
+    print_time()
     execute(do_ycsb,'load')
     execute(killall)
 
+    print_time()
     execute(start)
     time.sleep(30)
     execute(do_ycsb,'run')
 
+    print_time()
     execute(collect_results)
     execute(killall)
+    print_time()
+
+def prepare():
+    execute(get_code)
+    execute(config)
+    execute(compile_code)
 
 @task
 @roles('master')
 def benchmark():
+    prepare()
+
+    cassandra_settings.run_original = True
     cassandra_settings.max_items_for_large_replication_degree = 0
-    cassandra_settings.large_replication_degree = 3
-    benchmark_round()
-    cassandra_settings.large_replication_degree = 4
-    benchmark_round()
-    cassandra_settings.large_replication_degree = 8
+    cassandra_settings.replication_factor = 2
     benchmark_round()
