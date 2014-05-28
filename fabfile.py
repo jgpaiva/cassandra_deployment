@@ -117,17 +117,17 @@ def benchmark_round():
     execute(setup_ycsb)
     time.sleep(30)
 
-    execute(set_ignore_non_local,False)
     print_time()
+    execute(set_ignore_non_local,False)
     execute(do_ycsb, 'load')
     execute(killall)
 
-    execute(set_ignore_non_local,cassandra_settings.ignore_non_local)
     print_time()
     execute(start)
     time.sleep(30)
 
     execute(set_save_ops)
+    execute(set_ignore_non_local,cassandra_settings.ignore_non_local)
     execute(do_ycsb, 'run')
 
     print_time()
