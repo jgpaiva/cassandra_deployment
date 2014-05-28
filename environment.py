@@ -24,6 +24,7 @@ class cassandra_settings(object):
     max_items_for_large_replication_degree = 20
     replication_factor = 2
     large_replication_degree = 4
+    ignore_non_local = "true"
     threads = 30
     save_ops = False
     save_repl_set = True

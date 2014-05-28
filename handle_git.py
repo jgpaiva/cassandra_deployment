@@ -31,13 +31,15 @@ def compile_code():
     '''clean and compile cassandra code'''
     with cd(CODE_DIR):
         run("ant -q clean > /dev/null")
-        run("ant -q build > /dev/null")
+        run("ant -q build")
 
 
 @parallel
 def compile_ycsb():
-    with cd(YCSB_CODE_DIR):
-        run('cd core && mvn clean install && cd ../cassandra/ && mvn clean install')
+    with cd(path.join(YCSB_CODE_DIR,'core')):
+        run('mvn clean install')
+    with cd(path.join(YCSB_CODE_DIR,'cassandra')):
+        run('mvn clean install')
 
 
 @parallel

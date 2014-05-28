@@ -16,7 +16,7 @@ from os import path
 from environment import CODE_DIR, YCSB_CODE_DIR, LOG_FILE
 from environment import cassandra_settings
 
-from jmx import get_jmx
+import jmx
 
 from datetime import datetime as dt
 
@@ -54,14 +54,14 @@ def collect_results_from_nodes(res_dir):
 
     with quiet():
         if cassandra_settings.save_ops:
-            reads = get_jmx("AllReads")
-            writes = get_jmx("AllWrites")
+            reads = jmx.get("AllReads")
+            writes = jmx.get("AllWrites")
             with open(path.join(node_dir, 'operations.log'), 'a') as f:
                 f.write('reads:')
                 f.writelines(reads)
                 f.write('\nwrites:')
                 f.writelines(writes)
         if cassandra_settings.save_repl_set:
-            large_repl_set = get_jmx("LargeReplSet")
+            large_repl_set = jmx.get("LargeReplSet")
             with open(path.join(node_dir, 'large_repl.log'), 'a') as f:
                 f.writelines(large_repl_set)
