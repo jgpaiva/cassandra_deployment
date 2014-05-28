@@ -27,3 +27,7 @@ def clear_state():
 def delete_git():
     for repo in [CODE_DIR,YCSB_CODE_DIR]:
         run("rm -rf {0}".format(repo))
+
+@parallel
+def clean_nodes():
+    run("rm -rf *")

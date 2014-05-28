@@ -9,40 +9,59 @@ from fabric.api import task
 from fabric.api import get
 from fabric.api import local
 from fabric.api import hide
+from fabric.api import quiet
+
 from os import path
-from environment import CODE_DIR,YCSB_CODE_DIR,LOG_FILE
+
+from environment import CODE_DIR, YCSB_CODE_DIR, LOG_FILE
+from environment import cassandra_settings
+
+from jmx import get_jmx
 
 from datetime import datetime as dt
-from environment import cassandra_settings
 
 
 @task
 @roles('master')
 def collect_results():
     res_dir = "results." + str(dt.now().strftime('%Y%m%d.%H%M%S'))
-    execute(collect_results_from_nodes,res_dir)
+    execute(collect_results_from_nodes, res_dir)
     write_settings(res_dir)
 
+
 def write_settings(res_dir):
-    out_file = path.join(res_dir,'settings')
-    with open(out_file,'w') as f:
+    out_file = path.join(res_dir, 'settings.out')
+    with open(out_file, 'w') as f:
         f.write(str(cassandra_settings) + "\n")
+
 
 @parallel
 def collect_results_from_nodes(res_dir):
-    node_dir = path.join(res_dir,env.host_string)
+    node_dir = path.join(res_dir, env.host_string)
     local("mkdir -p {node_dir}".format(**locals()))
-    get("/tmp/run.out",node_dir)
-    get("/tmp/load.out",node_dir)
-    get(path.join(CODE_DIR,'conf'),node_dir)
-    get(LOG_FILE,node_dir)
+    get("/tmp/run.out", node_dir)
+    get("/tmp/load.out", node_dir)
+    get(path.join(CODE_DIR, 'conf'), node_dir)
+    get(LOG_FILE, node_dir)
     git_status = {}
-    for folder in [CODE_DIR,YCSB_CODE_DIR]:
+    for folder in [CODE_DIR, YCSB_CODE_DIR]:
         with hide('stdout'):
             with cd(folder):
-                out = run("git log -n 1",pty=False)
+                out = run("git log -n 1", pty=False)
                 git_status[folder] = out
-    with open(path.join(node_dir,"git_status"),'w') as f:
+    with open(path.join(node_dir, "git_status.out"), 'w') as f:
         f.write(str(git_status))
 
-
+    with quiet():
+        if cassandra_settings.save_ops:
+            reads = get_jmx("AllReads")
+            writes = get_jmx("AllWrites")
+            with open(path.join(node_dir, 'operations.log'), 'a') as f:
+                f.write('reads:')
+                f.writelines(reads)
+                f.write('\nwrites:')
+                f.writelines(writes)
+        if cassandra_settings.save_repl_set:
+            large_repl_set = get_jmx("LargeReplSet")
+            with open(path.join(node_dir, 'large_repl.log'), 'a') as f:
+                f.writelines(large_repl_set)
