@@ -5,6 +5,7 @@ LOG_FILE = "/var/log/cassandra/system.log"
 SERVER_URL = "cloudtm.ist.utl.pt"
 CASSANDRA_VAR = "/var/lib/cassandra/"
 SAVE_OPS_PAR = "SaveAllReadsAndWrites"
+IGNORE_NON_LOCAL_PAR = "IgnoreNonLocal"
 JMX_BEAN = "org.apache.cassandra.db:type=StorageProxy"
 JMX_TERM_JAR = "jmxterm-1.0-alpha-4-uber.jar"
 JMX_PORT = 7199

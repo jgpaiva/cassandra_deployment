@@ -15,7 +15,7 @@ from os import path
 import time
 from datetime import datetime as dt
 
-from environment import CODE_DIR, YCSB_CODE_DIR, SAVE_OPS_PAR
+from environment import CODE_DIR, YCSB_CODE_DIR, SAVE_OPS_PAR, IGNORE_NON_LOCAL_PAR
 from environment import cassandra_settings
 
 from clean import killall, clear_logs, clear_state, clean_nodes
@@ -154,7 +154,7 @@ def set_save_ops():
 
 @parallel
 def set_ignore_non_local(val):
-    jmx.set(SAVE_OPS_PAR, 'true' if val else 'false')
+    jmx.set(IGNORE_NON_LOCAL_PAR, 'true' if val else 'false')
 
 @task
 def fork(cmd):
