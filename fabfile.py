@@ -45,6 +45,8 @@ def config():
                 cassandra_settings.large_replication_degree))
             run('''sed -i "s/^ignore_non_local:.*/ignore_non_local: {0}/" cassandra.yaml'''.format(
                 cassandra_settings.ignore_non_local))
+            run('''sed -i "s/^select_random_node:.*/select_random_node: {0}/" cassandra.yaml'''.format(
+                cassandra_settings.select_random_node))
 
 
 @roles('master')
@@ -146,6 +148,7 @@ def prepare():
     execute(get_code)
     execute(config)
     execute(compile_code)
+    execute(compile_ycsb)
 
 
 @parallel
@@ -182,6 +185,8 @@ def boot_cassandra():
 @roles('master')
 def benchmark():
     prepare()
+
+    cassandra_settings.ignore_non_local = True
 
     cassandra_settings.save_ops = True
     cassandra_settings.save_repl_set = True

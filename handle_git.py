@@ -3,9 +3,15 @@ from fabric.api import run
 from fabric.api import cd
 from fabric.api import parallel
 from fabric.api import hide
-from os import path
+from fabric.api import quiet
+from fabric.api import abort
+from fabric.api import env
+
 from environment import CODE_DIR, YCSB_CODE_DIR, BASE_GIT_DIR, SERVER_URL
 from environment import cassandra_settings
+
+import time
+from os import path
 
 
 @parallel
@@ -31,15 +37,19 @@ def compile_code():
     '''clean and compile cassandra code'''
     with cd(CODE_DIR):
         run("ant -q clean > /dev/null")
-        run("ant -q build")
+        time.sleep(2)
+        with quiet():
+            res = run("ant build")
+            if res.failed:
+                abort('command failed at node {0}:\n{1}'.format(env.host_string,res))
 
 
 @parallel
 def compile_ycsb():
     with cd(path.join(YCSB_CODE_DIR,'core')):
-        run('mvn clean install')
+        run('mvn -q clean install')
     with cd(path.join(YCSB_CODE_DIR,'cassandra')):
-        run('mvn clean install')
+        run('mvn -q clean install')
 
 
 @parallel
