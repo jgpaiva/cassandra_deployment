@@ -1,15 +1,19 @@
 CODE_DIR = "/home/jgpaiva/cassandra"
 YCSB_CODE_DIR = "/home/jgpaiva/YCSB"
 BASE_GIT_DIR = "/home/jgpaiva/nas/autoreplicator/"
+LOG_FOLDER = "/var/log/cassandra/"
 LOG_FILE = "/var/log/cassandra/system.log"
 SERVER_URL = "cloudtm.ist.utl.pt"
 CASSANDRA_VAR = "/var/lib/cassandra/"
 SAVE_OPS_PAR = "SaveAllReadsAndWrites"
 IGNORE_NON_LOCAL_PAR = "IgnoreNonLocal"
 SELECT_RANDOM_NODE_PAR = "SelectRandomNode"
+MAX_ITEMS_FOR_LARGE_REPL_PAR = "MaxItemsForLargeReplicationDegree"
 JMX_BEAN = "org.apache.cassandra.db:type=StorageProxy"
 JMX_TERM_JAR = "jmxterm-1.0-alpha-4-uber.jar"
 JMX_PORT = 7199
+MAX_COMPILE_RETRIES = 3
+SLAVES_FILE = 'slaves'
 
 
 class DecentRepr(type):

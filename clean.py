@@ -4,7 +4,7 @@ from fabric.api import parallel
 from fabric.api import sudo
 from fabric.api import quiet
 from fabric.api import cd
-from environment import LOG_FILE,CASSANDRA_VAR,CODE_DIR,YCSB_CODE_DIR
+from environment import LOG_FOLDER,CASSANDRA_VAR,CODE_DIR,YCSB_CODE_DIR
 
 @parallel
 def killall():
@@ -16,7 +16,7 @@ def killall():
 def clear_logs():
     '''delete cassandra logs'''
     with quiet():
-        sudo("rm -f {0}".format(LOG_FILE))
+        sudo("rm -f {0}/*".format(LOG_FOLDER))
 
 @parallel
 def clear_state():
@@ -24,6 +24,8 @@ def clear_state():
     with quiet():
         sudo("rm -rf {0}".format(CASSANDRA_VAR))
         with cd(CODE_DIR):
+            sudo("rm -rf *.hprof")
+        with cd(YCSB_CODE_DIR):
             sudo("rm -rf *.hprof")
 
 @parallel

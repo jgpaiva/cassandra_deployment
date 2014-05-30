@@ -7,10 +7,9 @@ from fabric.api import quiet
 from fabric.api import abort
 from fabric.api import env
 
-from environment import CODE_DIR, YCSB_CODE_DIR, BASE_GIT_DIR, SERVER_URL
+from environment import CODE_DIR, YCSB_CODE_DIR, BASE_GIT_DIR, SERVER_URL, MAX_COMPILE_RETRIES
 from environment import cassandra_settings
 
-import time
 from os import path
 
 
@@ -37,19 +36,26 @@ def compile_code():
     '''clean and compile cassandra code'''
     with cd(CODE_DIR):
         run("ant -q clean > /dev/null")
-        time.sleep(2)
         with quiet():
-            res = run("ant build")
-            if res.failed:
-                abort('command failed at node {0}:\n{1}'.format(env.host_string,res))
+            all_res = []
+            for i in range(MAX_COMPILE_RETRIES):
+                res = run("ant")
+                if not res.failed:
+                    break
+                all_res.append(res)
+                print('Compile failed at {0}. Retry {1}.'.format(
+                    env.host_string, i))
+            else:
+                abort('command failed {0} times at node {1}:\n{2}'.format(
+                    MAX_COMPILE_RETRIES, env.host_string, res))
 
 
 @parallel
 def compile_ycsb():
     with cd(path.join(YCSB_CODE_DIR,'core')):
-        run('mvn -q clean install')
+        run('mvn -q -Dmaven.test.skip=true clean install')
     with cd(path.join(YCSB_CODE_DIR,'cassandra')):
-        run('mvn -q clean install')
+        run('mvn -q -Dmaven.test.skip=true clean install')
 
 
 @parallel
