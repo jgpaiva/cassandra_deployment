@@ -47,6 +47,9 @@ def config():
                 cassandra_settings.ignore_non_local))
             run('''sed -i "s/^select_random_node:.*/select_random_node: {0}/" cassandra.yaml'''.format(
                 cassandra_settings.select_random_node))
+        with cd(path.join(YCSB_CODE_DIR, 'workloads')):
+            run('''sed -i "s/^operationcount=.*/operationcount= {0}/" workloadb'''.format(
+                cassandra_settings.operationcount))
 
 
 @roles('master')
@@ -94,12 +97,14 @@ def setup_environment():
     execute(config)
     execute(compile_all)
 
+
 @task
 @roles('master')
 def compile_all():
     execute(compile_code)
     execute(compile_ycsb)
     execute(upload_libs)
+
 
 def print_time():
     print str(dt.now().strftime('%Y-%m-%d %H:%M.%S'))
@@ -120,7 +125,8 @@ def benchmark_round():
     time.sleep(30)
 
     print_time()
-    execute(set_ignore_non_local,False)
+    execute(set_bool_par, SAVE_OPS_PAR, False)
+    execute(set_bool_par, IGNORE_NON_LOCAL_PAR, False)
     execute(do_ycsb, 'load')
     execute(killall)
 
@@ -128,8 +134,9 @@ def benchmark_round():
     execute(start)
     time.sleep(30)
 
-    execute(set_save_ops)
-    execute(set_ignore_non_local,cassandra_settings.ignore_non_local)
+    execute(set_bool_par, SAVE_OPS_PAR, cassandra_settings.save_ops)
+    execute(set_bool_par, IGNORE_NON_LOCAL_PAR,
+            cassandra_settings.ignore_non_local)
     execute(do_ycsb, 'run')
 
     print_time()
@@ -152,16 +159,14 @@ def prepare():
 
 
 @parallel
-def set_save_ops():
-    jmx.set(SAVE_OPS_PAR, 'true' if cassandra_settings.save_ops else 'false')
+def set_bool_par(par, val):
+    jmx.set(par, 'true' if val else 'false')
 
-@parallel
-def set_ignore_non_local(val):
-    jmx.set(IGNORE_NON_LOCAL_PAR, 'true' if val else 'false')
 
 @task
 def fork(cmd):
     run(cmd)
+
 
 @task
 @roles('master')
@@ -187,17 +192,15 @@ def benchmark():
     prepare()
 
     cassandra_settings.ignore_non_local = True
+    cassandra_settings.threads = 120
 
-    cassandra_settings.save_ops = True
     cassandra_settings.save_repl_set = True
     benchmark_round()
 
-    cassandra_settings.save_ops = True
     cassandra_settings.save_repl_set = True
     cassandra_settings.max_items_for_large_replication_degree = 0
     benchmark_round()
 
-    cassandra_settings.save_ops = True
     cassandra_settings.save_repl_set = True
     cassandra_settings.large_replication_degree = 12
     cassandra_settings.max_items_for_large_replication_degree = 20

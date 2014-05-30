@@ -31,3 +31,4 @@ class cassandra_settings(object):
     save_ops = False
     save_repl_set = True
     select_random_node = False
+    operationcount = 100000

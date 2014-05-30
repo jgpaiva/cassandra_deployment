@@ -3,6 +3,7 @@ from fabric.api import run
 from fabric.api import parallel
 from fabric.api import sudo
 from fabric.api import quiet
+from fabric.api import cd
 from environment import LOG_FILE,CASSANDRA_VAR,CODE_DIR,YCSB_CODE_DIR
 
 @parallel
@@ -22,6 +23,8 @@ def clear_state():
     '''delete all cassandra persistent state'''
     with quiet():
         sudo("rm -rf {0}".format(CASSANDRA_VAR))
+        with cd(CODE_DIR):
+            sudo("rm -rf *.hprof")
 
 @parallel
 def delete_git():
