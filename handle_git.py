@@ -11,7 +11,8 @@ from environment import BASE_GIT_DIR
 from environment import SERVER_URL
 from environment import MAX_RETRIES
 from environment import cassandra_settings
-from environment import run_with_retry
+
+from utils import run_with_retry
 
 from os import path
 

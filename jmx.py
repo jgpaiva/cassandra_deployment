@@ -2,7 +2,8 @@ from fabric.api import task
 from fabric.api import roles
 from fabric.api import parallel
 from environment import JMX_BEAN, JMX_TERM_JAR, JMX_PORT  # NOQA
-from environment import sudo_with_retry
+
+from utils import sudo_with_retry
 
 
 @task

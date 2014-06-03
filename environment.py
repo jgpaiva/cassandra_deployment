@@ -1,9 +1,3 @@
-from fabric.api import warn_only
-from fabric.api import run
-from fabric.api import abort
-from fabric.api import env
-from fabric.api import sudo
-
 CODE_DIR = "/home/jgpaiva/cassandra"
 YCSB_CODE_DIR = "/home/jgpaiva/YCSB"
 BASE_GIT_DIR = "/home/jgpaiva/nas/autoreplicator/"
@@ -44,23 +38,3 @@ class cassandra_settings(object):
     select_random_node = False
     operationcount = 400000
     sleep_time = 0
-
-def run_with_retry(command):
-    with warn_only():
-        for i in range(MAX_RETRIES):
-            res = run(command)
-            if not res.failed:
-                break
-            print "WARNING: command '{0}' failed {1} times at node".format(command,i+1,env.host_string)
-        else:
-            abort("FATAL: command '{0}' failed {1} times".format(command,MAX_RETRIES))
-
-def sudo_with_retry(command):
-    with warn_only():
-        for i in range(MAX_RETRIES):
-            res = sudo(command)
-            if not res.failed:
-                break
-            print "WARNING: command '{0}' failed {1} times at node".format(command,i+1,env.host_string)
-        else:
-            abort("FATAL: command '{0}' failed {1} times".format(command,MAX_RETRIES))
