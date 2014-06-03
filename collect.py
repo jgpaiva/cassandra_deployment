@@ -65,8 +65,10 @@ def collect_results_from_nodes(res_dir):
                 f.writelines(writes)
         if cassandra_settings.save_repl_set:
             large_repl_set = jmx.get("LargeReplSet")
+            large_repl_set = large_repl_set or []
             with open(path.join(node_dir, 'large_repl.log'), 'a') as f:
                 f.writelines(large_repl_set)
             my_large_repl_set = jmx.get("MyLargeReplSet")
+            my_large_repl_set = my_large_repl_set or []
             with open(path.join(node_dir, 'my_large_repl.log'), 'a') as f:
                 f.writelines(my_large_repl_set)

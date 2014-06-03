@@ -11,6 +11,8 @@ def killall():
     '''kill all java processes'''
     with quiet():
         sudo("killall -q java")
+    with quiet():
+        run("killall -q java")
 
 @parallel
 def clear_logs():
