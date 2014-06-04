@@ -19,7 +19,6 @@ def killall():
     '''kill all java processes'''
     with quiet():
         sudo("killall -q java")
-    with quiet():
         run("killall -q java")
 
 
@@ -28,10 +27,9 @@ def clear_logs():
     '''delete cassandra logs'''
     with quiet():
         sudo("rm -f {0}/*".format(LOG_FOLDER))
-    with quiet():
         for i in [YCSB_RUN_OUT_FILE, YCSB_RUN_ERR_FILE,
                   YCSB_LOAD_OUT_FILE, YCSB_LOAD_ERR_FILE]:
-            sudo("rm {}", i)
+            sudo("rm {0}".format(i))
 
 
 @parallel

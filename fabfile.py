@@ -135,7 +135,8 @@ def start():
 @task
 @parallel
 def start_check():
-    sudo("pgrep -f 'java.*c[a]ssandra'")
+    with hide('everything'):
+        sudo("pgrep -f 'java.*c[a]ssandra'")
 
 
 def do_ycsb(operation):
@@ -190,21 +191,23 @@ def empty_and_config_nodes():
 
 @parallel
 def prepare_load():
-    jmx.set_bool_value(SAVE_OPS_PAR, False)
-    jmx.set_bool_value(IGNORE_NON_LOCAL_PAR, False)
-    jmx.set_value(MAX_ITEMS_FOR_LARGE_REPL_PAR, 0)
-    jmx.set_value(MAX_ITEMS_FOR_LARGE_REPL_PAR, 0)
-    jmx.set_value(SLEEP_TIME_PAR, 0)
+    with hide('running'):
+        jmx.set_bool_value(SAVE_OPS_PAR, False)
+        jmx.set_bool_value(IGNORE_NON_LOCAL_PAR, False)
+        jmx.set_value(MAX_ITEMS_FOR_LARGE_REPL_PAR, 0)
+        jmx.set_value(MAX_ITEMS_FOR_LARGE_REPL_PAR, 0)
+        jmx.set_value(SLEEP_TIME_PAR, 0)
 
 
 @parallel
 def prepare_run():
-    jmx.set_bool_value(SAVE_OPS_PAR, cassandra_settings.save_ops)
-    jmx.set_bool_value(IGNORE_NON_LOCAL_PAR,
-                 cassandra_settings.ignore_non_local)
-    jmx.set_value(MAX_ITEMS_FOR_LARGE_REPL_PAR,
-            cassandra_settings.max_items_for_large_replication_degree)
-    jmx.set_value(SLEEP_TIME_PAR, cassandra_settings.sleep_time)
+    with hide('running'):
+        jmx.set_bool_value(SAVE_OPS_PAR, cassandra_settings.save_ops)
+        jmx.set_bool_value(IGNORE_NON_LOCAL_PAR,
+                           cassandra_settings.ignore_non_local)
+        jmx.set_value(MAX_ITEMS_FOR_LARGE_REPL_PAR,
+                      cassandra_settings.max_items_for_large_replication_degree)
+        jmx.set_value(SLEEP_TIME_PAR, cassandra_settings.sleep_time)
 
 
 def benchmark_round():

@@ -25,7 +25,9 @@ class DecentRepr(type):
 
     def __repr__(self):
         settings = (var for var in vars(self) if not var.startswith('_'))
-        return self.__name__ + "{" + ", ".join((i + ":" + str(getattr(self, i)) for i in settings)) + "}"
+        return (self.__name__ + "{" +
+                ", ".join((i + ":" + str(getattr(self, i)) for i in settings))
+                + "}")
 
 
 class cassandra_settings(object):

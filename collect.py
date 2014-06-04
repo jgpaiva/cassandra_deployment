@@ -9,7 +9,6 @@ from fabric.api import task
 from fabric.api import get
 from fabric.api import local
 from fabric.api import hide
-from fabric.api import quiet
 from fabric.api import warn_only
 
 from environment import YCSB_RUN_OUT_FILE
@@ -32,10 +31,6 @@ from datetime import datetime as dt
 def collect_results():
     res_dir = "results." + str(dt.now().strftime('%Y%m%d.%H%M%S'))
     execute(collect_results_from_nodes, res_dir)
-    write_settings(res_dir)
-
-
-def write_settings(res_dir):
     out_file = path.join(res_dir, 'settings.out')
     with open(out_file, 'w') as f:
         f.write(str(cassandra_settings) + "\n")
@@ -45,34 +40,27 @@ def write_settings(res_dir):
 def collect_results_from_nodes(res_dir):
     node_dir = path.join(res_dir, env.host_string)
     local("mkdir -p {node_dir}".format(**locals()))
-    for i in [YCSB_RUN_OUT_FILE, YCSB_RUN_ERR_FILE,
-              YCSB_LOAD_OUT_FILE, YCSB_LOAD_ERR_FILE]:
-        with warn_only():
-            get(i, node_dir)
-    get(path.join(CODE_DIR, 'conf'), node_dir)
-    get(LOG_FILE, node_dir)
-    git_status = {}
-    for folder in [CODE_DIR, YCSB_CODE_DIR]:
-        with hide('stdout'):
+
+    with hide('everything'):
+        for i in [YCSB_RUN_OUT_FILE, YCSB_RUN_ERR_FILE,
+                YCSB_LOAD_OUT_FILE, YCSB_LOAD_ERR_FILE]:
+            _get(i, node_dir)
+        _get(path.join(CODE_DIR, 'conf'), node_dir)
+        _get(LOG_FILE, node_dir)
+
+        git_status = {}
+        for folder in [CODE_DIR, YCSB_CODE_DIR]:
             with cd(folder):
                 out = run("git log -n 1", pty=False)
                 git_status[folder] = out
-    with open(path.join(node_dir, "git_status.out"), 'w') as f:
-        f.write(str(git_status))
+        with open(path.join(node_dir, "git_status.out"), 'w') as f:
+            f.write(str(git_status))
 
-    with quiet():
-        if cassandra_settings.save_ops:
-            reads = jmx.get("AllReads")
-            writes = jmx.get("AllWrites")
-            with open(path.join(node_dir, 'operations.log'), 'a') as f:
-                f.write('reads:')
-                f.writelines(reads)
-                f.write('\nwrites:')
-                f.writelines(writes)
+        for parameter in ['LargeReplSet', 'MyLargeReplSet', 'AllReads', 'AllWrites']:
+            with open(path.join(node_dir, parameter + ".log"), 'a') as f:
+                f.writelines(jmx.get(parameter))
 
-        large_repl_set = jmx.get("LargeReplSet")
-        with open(path.join(node_dir, 'large_repl.log'), 'a') as f:
-            f.writelines(large_repl_set)
-        my_large_repl_set = jmx.get("MyLargeReplSet")
-        with open(path.join(node_dir, 'my_large_repl.log'), 'a') as f:
-            f.writelines(my_large_repl_set)
+
+def _get(source_dir, dest_dir):
+    with warn_only():
+        get(source_dir, dest_dir)
