@@ -15,7 +15,9 @@ from fabric.api import quiet
 from fabric.api import abort
 
 from os import path
+
 import time
+
 from datetime import datetime as dt
 
 from environment import CODE_DIR
@@ -27,24 +29,42 @@ from environment import SLAVES_FILE
 from environment import MAX_RETRIES
 from environment import SLEEP_TIME_PAR
 from environment import cassandra_settings
+from environment import YCSB_RUN_OUT_FILE
+from environment import YCSB_RUN_ERR_FILE
+from environment import YCSB_LOAD_OUT_FILE
+from environment import YCSB_LOAD_ERR_FILE
 
-from clean import killall, clear_logs, clear_state, clean_nodes
+from clean import killall
+from clean import clear_logs
+from clean import clear_state
+from clean import clean_nodes
+
 from collect import collect_results
-from handle_git import get_code, compile_code, config_git, compile_ycsb
+
+from handle_git import get_code
+from handle_git import compile_code
+from handle_git import config_git
+from handle_git import compile_ycsb
+
 import jmx
 
 with open(SLAVES_FILE, 'r') as f:
     env.hosts = [line[:-1] for line in f]
 
 env.roledefs['master'] = [env.hosts[0]]
+if cassandra_settings.run_ycsb_on_single_node:
+    env.hosts = env.hosts[1:]
+
 
 def print_time():
     print "TIME: " + str(dt.now().strftime('%Y-%m-%d %H:%M.%S'))
 
 old_execute = execute
-def execute_with_time(*args,**kargs):
+
+
+def execute_with_time(*args, **kargs):
     print_time()
-    old_execute(*args,**kargs)
+    old_execute(*args, **kargs)
 execute = execute_with_time
 
 
@@ -54,21 +74,28 @@ def config():
     print 'setting up config at {0}'.format(env.host_string)
     with hide('running'):
         with cd(path.join(CODE_DIR, 'conf')):
+            options_file = 'cassandra.yaml'
             run('''sed -i 's/seeds:.*/seeds: "{0}"/' cassandra.yaml'''.format(
                 ", ".join(env.hosts)))
-            run('''sed -i "s/^listen_address:.*/listen_address: {0}/" cassandra.yaml'''.format(env.host_string))
-            run('''sed -i "s/^rpc_address:.*/rpc_address: /" cassandra.yaml''')
-            run('''sed -i "s/^max_items_for_large_replication_degree:.*/max_items_for_large_replication_degree: {0}/" cassandra.yaml'''.format(
-                cassandra_settings.max_items_for_large_replication_degree))
-            run('''sed -i "s/^large_replication_degree:.*/large_replication_degree: {0}/" cassandra.yaml'''.format(
-                cassandra_settings.large_replication_degree))
-            run('''sed -i "s/^ignore_non_local:.*/ignore_non_local: {0}/" cassandra.yaml'''.format(
-                cassandra_settings.ignore_non_local))
-            run('''sed -i "s/^select_random_node:.*/select_random_node: {0}/" cassandra.yaml'''.format(
-                cassandra_settings.select_random_node))
+            set_option('listen_address', env.host_string, options_file)
+            set_option('rpc_address', "", options_file)
+            set_option('max_items_for_large_replication_degree',
+                       cassandra_settings.max_items_for_large_replication_degree, options_file)
+            set_option('large_replication_degree',
+                       cassandra_settings.large_replication_degree, options_file)
+            set_option('ignore_non_local',
+                       cassandra_settings.ignore_non_local, options_file)
+            set_option('select_random_node',
+                       cassandra_settings.select_random_node, options_file)
         with cd(path.join(YCSB_CODE_DIR, 'workloads')):
-            run('''sed -i "s/^operationcount=.*/operationcount= {0}/" workloadb'''.format(
-                cassandra_settings.operationcount))
+            set_option('operationcount',
+                       cassandra_settings.operationcount, 'workloadb')
+
+
+def set_option(option, value, file):
+    option_string = 'sed -i "s/^{option}:.*/{option}: {value}/" {file}'.format(
+        **locals())
+    run(option_string)
 
 
 @roles('master')
@@ -102,20 +129,41 @@ def start():
         else:
             abort('starting cassandra failed at node {0}'.format(
                 env.host_string))
+
+
+@task
 @parallel
 def start_check():
     sudo("pgrep -f 'java.*c[a]ssandra'")
 
 
+def do_ycsb(operation):
+    if cassandra_settings.run_ycsb_on_single_node:
+        execute(do_centralized_ycsb, operation)
+    else:
+        execute(do_parallel_ycsb, operation)
+
+
 @parallel
-def do_ycsb(arg):
+def do_parallel_ycsb(arg):
+    hosts = env.hosts
     if arg == 'load':
         threads = 64
+        out_file = YCSB_LOAD_OUT_FILE
+        err_file = YCSB_LOAD_ERR_FILE
     else:
         threads = cassandra_settings.threads
+        out_file = YCSB_RUN_OUT_FILE
+        err_file = YCSB_RUN_ERR_FILE
     with cd(YCSB_CODE_DIR):
-        sudo('./bin/ycsb {1} cassandra-10 -threads {2} -p hosts={0} -P workloads/workloadb -s > /tmp/{1}.out 2> /tmp/{1}.err'.format(env.host_string,
-            arg, threads))
+        sudo('./bin/ycsb {arg} cassandra-10 -threads {threads} -p hosts={hosts}'
+             ' -P workloads/workloadb -s > {out_file} 2> {err_file}'.format(
+                 **locals()))
+
+
+@roles('master')
+def do_centralized_ycsb(arg):
+    do_parallel_ycsb(arg)
 
 
 @task
@@ -149,6 +197,7 @@ def empty_and_config_nodes():
     clear_logs()
     config()
 
+
 @parallel
 def prepare_load():
     set_bool_par(SAVE_OPS_PAR, False)
@@ -157,14 +206,16 @@ def prepare_load():
     jmx.set(MAX_ITEMS_FOR_LARGE_REPL_PAR, 0)
     jmx.set(SLEEP_TIME_PAR, 0)
 
+
 @parallel
 def prepare_run():
     set_bool_par(SAVE_OPS_PAR, cassandra_settings.save_ops)
     set_bool_par(IGNORE_NON_LOCAL_PAR,
-            cassandra_settings.ignore_non_local)
+                 cassandra_settings.ignore_non_local)
     jmx.set(MAX_ITEMS_FOR_LARGE_REPL_PAR,
             cassandra_settings.max_items_for_large_replication_degree)
     jmx.set(SLEEP_TIME_PAR, cassandra_settings.sleep_time)
+
 
 def benchmark_round():
     execute(empty_and_config_nodes)
@@ -176,7 +227,7 @@ def benchmark_round():
     time.sleep(30)
 
     execute(prepare_load)
-    execute(do_ycsb, 'load')
+    do_ycsb('load')
     execute(killall)
 
     execute(start)
@@ -184,7 +235,7 @@ def benchmark_round():
     time.sleep(30)
 
     execute(prepare_run)
-    execute(do_ycsb, 'run')
+    do_ycsb('run')
 
     time.sleep(10)
     execute(collect_results)
@@ -237,10 +288,10 @@ def boot_cassandra():
 def benchmark():
     prepare()
 
-    cassandra_settings.ignore_non_local = True
-    cassandra_settings.threads = 400
-    cassandra_settings.sleep_time = 200
-    cassandra_settings.operationcount = 600000
+    cassandra_settings.save_ops = True
+    cassandra_settings.threads = 1000
+    cassandra_settings.sleep_time = 0
+    cassandra_settings.operationcount = 10000000
 
     benchmark_round()
 

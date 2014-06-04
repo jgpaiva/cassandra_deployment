@@ -15,6 +15,10 @@ JMX_TERM_JAR = "jmxterm-1.0-alpha-4-uber.jar"
 JMX_PORT = 7199
 MAX_RETRIES = 3
 SLAVES_FILE = 'slaves'
+YCSB_RUN_OUT_FILE = "/tmp/run.out"
+YCSB_RUN_ERR_FILE = "/tmp/run.err"
+YCSB_LOAD_OUT_FILE = "/tmp/load.out"
+YCSB_LOAD_ERR_FILE = "/tmp/load.err"
 
 
 class DecentRepr(type):
@@ -34,7 +38,7 @@ class cassandra_settings(object):
     ignore_non_local = False
     threads = 30
     save_ops = False
-    save_repl_set = True
     select_random_node = False
     operationcount = 400000
     sleep_time = 0
+    run_ycsb_on_single_node = True

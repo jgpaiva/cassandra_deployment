@@ -10,6 +10,12 @@ from fabric.api import get
 from fabric.api import local
 from fabric.api import hide
 from fabric.api import quiet
+from fabric.api import warn_only
+
+from environment import YCSB_RUN_OUT_FILE
+from environment import YCSB_RUN_ERR_FILE
+from environment import YCSB_LOAD_OUT_FILE
+from environment import YCSB_LOAD_ERR_FILE
 
 from os import path
 
@@ -39,10 +45,10 @@ def write_settings(res_dir):
 def collect_results_from_nodes(res_dir):
     node_dir = path.join(res_dir, env.host_string)
     local("mkdir -p {node_dir}".format(**locals()))
-    get("/tmp/run.out", node_dir)
-    get("/tmp/run.err", node_dir)
-    get("/tmp/load.out", node_dir)
-    get("/tmp/load.err", node_dir)
+    for i in [YCSB_RUN_OUT_FILE, YCSB_RUN_ERR_FILE,
+              YCSB_LOAD_OUT_FILE, YCSB_LOAD_ERR_FILE]:
+        with warn_only():
+            get(i, node_dir)
     get(path.join(CODE_DIR, 'conf'), node_dir)
     get(LOG_FILE, node_dir)
     git_status = {}
@@ -63,12 +69,10 @@ def collect_results_from_nodes(res_dir):
                 f.writelines(reads)
                 f.write('\nwrites:')
                 f.writelines(writes)
-        if cassandra_settings.save_repl_set:
-            large_repl_set = jmx.get("LargeReplSet")
-            large_repl_set = large_repl_set or []
-            with open(path.join(node_dir, 'large_repl.log'), 'a') as f:
-                f.writelines(large_repl_set)
-            my_large_repl_set = jmx.get("MyLargeReplSet")
-            my_large_repl_set = my_large_repl_set or []
-            with open(path.join(node_dir, 'my_large_repl.log'), 'a') as f:
-                f.writelines(my_large_repl_set)
+
+        large_repl_set = jmx.get("LargeReplSet")
+        with open(path.join(node_dir, 'large_repl.log'), 'a') as f:
+            f.writelines(large_repl_set)
+        my_large_repl_set = jmx.get("MyLargeReplSet")
+        with open(path.join(node_dir, 'my_large_repl.log'), 'a') as f:
+            f.writelines(my_large_repl_set)
