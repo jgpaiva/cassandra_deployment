@@ -3,13 +3,11 @@ from fabric.api import run
 from fabric.api import cd
 from fabric.api import parallel
 from fabric.api import hide
-from fabric.api import warn_only
 
 from environment import CODE_DIR
 from environment import YCSB_CODE_DIR
 from environment import BASE_GIT_DIR
 from environment import SERVER_URL
-from environment import MAX_RETRIES
 from environment import cassandra_settings
 
 from utils import run_with_retry
@@ -23,11 +21,7 @@ def get_code():
     with hide('stdout'):
         with cd(CODE_DIR):
             run("git reset --hard")
-            with warn_only():
-                for i in range(MAX_RETRIES):
-                    res = run("git fetch -q origin")
-                    if not res.failed:
-                        break
+            run_with_retry("git fetch -q origin")
             if cassandra_settings.run_original:
                 run("git checkout -q cassandra-2.1")
                 run_with_retry("git pull -q origin cassandra-2.1")
@@ -43,19 +37,21 @@ def get_code():
 def compile_code():
     '''clean and compile cassandra code'''
     with cd(CODE_DIR):
-        run("ant -q clean > /dev/null")
-        run_with_retry("ant")
+        with hide('stdout'):
+            run("ant -q clean > /dev/null")
+            run_with_retry("ant -q")
 
 @parallel
 def compile_ycsb():
-    with cd(path.join(YCSB_CODE_DIR,'core')):
-        run('mvn -q -Dmaven.test.skip=true clean install')
-    with cd(path.join(YCSB_CODE_DIR,'cassandra')):
-        run('mvn -q -Dmaven.test.skip=true clean install')
+    with hide('stdout'):
+        with cd(path.join(YCSB_CODE_DIR,'core')):
+            run('mvn -q -Dmaven.test.skip=true clean install')
+        with cd(path.join(YCSB_CODE_DIR,'cassandra')):
+            run('mvn -q -Dmaven.test.skip=true clean install')
 
 
 @parallel
-def config_git():
+def configure():
     '''setup git on hosts'''
     run('git config --global user.email "you@example.com"')
     run('git config --global user.name "Your Name"')

@@ -16,6 +16,8 @@ from fabric.api import abort
 
 from os import path
 
+from contextlib import contextmanager
+
 import time
 
 from datetime import datetime as dt
@@ -41,10 +43,7 @@ from clean import clean_nodes
 
 from collect import collect_results
 
-from handle_git import get_code
-from handle_git import compile_code
-from handle_git import config_git
-from handle_git import compile_ycsb
+import git
 
 import jmx
 
@@ -52,8 +51,10 @@ with open(SLAVES_FILE, 'r') as f:
     env.hosts = [line[:-1] for line in f]
 
 env.roledefs['master'] = [env.hosts[0]]
+env.roledefs['ycsbmaster'] = [env.hosts[-1]]
+ycsbmaster = env.hosts[-1]
 if cassandra_settings.run_ycsb_on_single_node:
-    env.hosts = env.hosts[1:]
+    env.hosts = env.hosts[:-1]
 
 
 def print_time():
@@ -146,7 +147,7 @@ def do_ycsb(operation):
 
 @parallel
 def do_parallel_ycsb(arg):
-    hosts = env.hosts
+    hosts = ",".join(env.hosts)
     if arg == 'load':
         threads = 64
         out_file = YCSB_LOAD_OUT_FILE
@@ -161,7 +162,7 @@ def do_parallel_ycsb(arg):
                  **locals()))
 
 
-@roles('master')
+@roles('ycsbmaster')
 def do_centralized_ycsb(arg):
     do_parallel_ycsb(arg)
 
@@ -169,25 +170,14 @@ def do_centralized_ycsb(arg):
 @task
 @roles('master')
 def setup_environment():
-    '''get cassandra ready to run from zero'''
-    execute(clean_nodes)
-    execute(config_git)
+    '''get cassandra ready to run from clean state'''
+    with set_nodes(env.hosts + [ycsbmaster]):
+        execute(killall)
+        execute(clean_nodes)
+        execute(git.configure)
 
-    execute(clear_state)
-    execute(clear_logs)
-    execute(killall)
-
-    execute(get_code)
-    execute(config)
-    execute(compile_all)
-
-
-@task
-@roles('master')
-def compile_all():
-    execute(compile_code)
-    execute(compile_ycsb)
-    execute(upload_libs)
+        execute(clear_state)
+        execute(clear_logs)
 
 
 @parallel
@@ -200,25 +190,26 @@ def empty_and_config_nodes():
 
 @parallel
 def prepare_load():
-    set_bool_par(SAVE_OPS_PAR, False)
-    set_bool_par(IGNORE_NON_LOCAL_PAR, False)
-    jmx.set(MAX_ITEMS_FOR_LARGE_REPL_PAR, 0)
-    jmx.set(MAX_ITEMS_FOR_LARGE_REPL_PAR, 0)
-    jmx.set(SLEEP_TIME_PAR, 0)
+    jmx.set_bool_value(SAVE_OPS_PAR, False)
+    jmx.set_bool_value(IGNORE_NON_LOCAL_PAR, False)
+    jmx.set_value(MAX_ITEMS_FOR_LARGE_REPL_PAR, 0)
+    jmx.set_value(MAX_ITEMS_FOR_LARGE_REPL_PAR, 0)
+    jmx.set_value(SLEEP_TIME_PAR, 0)
 
 
 @parallel
 def prepare_run():
-    set_bool_par(SAVE_OPS_PAR, cassandra_settings.save_ops)
-    set_bool_par(IGNORE_NON_LOCAL_PAR,
+    jmx.set_bool_value(SAVE_OPS_PAR, cassandra_settings.save_ops)
+    jmx.set_bool_value(IGNORE_NON_LOCAL_PAR,
                  cassandra_settings.ignore_non_local)
-    jmx.set(MAX_ITEMS_FOR_LARGE_REPL_PAR,
+    jmx.set_value(MAX_ITEMS_FOR_LARGE_REPL_PAR,
             cassandra_settings.max_items_for_large_replication_degree)
-    jmx.set(SLEEP_TIME_PAR, cassandra_settings.sleep_time)
+    jmx.set_value(SLEEP_TIME_PAR, cassandra_settings.sleep_time)
 
 
 def benchmark_round():
-    execute(empty_and_config_nodes)
+    with set_nodes(env.hosts + [ycsbmaster]):
+        execute(empty_and_config_nodes)
 
     execute(start)
     execute(start_check)
@@ -228,7 +219,8 @@ def benchmark_round():
 
     execute(prepare_load)
     do_ycsb('load')
-    execute(killall)
+    with set_nodes(env.hosts + [ycsbmaster]):
+        execute(killall)
 
     execute(start)
     execute(start_check)
@@ -238,8 +230,16 @@ def benchmark_round():
     do_ycsb('run')
 
     time.sleep(10)
-    execute(collect_results)
-    execute(killall)
+    with set_nodes(env.hosts + [ycsbmaster]):
+        execute(collect_results)
+        execute(killall)
+
+@contextmanager
+def set_nodes(newhosts):
+    tmp = env.hosts
+    env.hosts = list(set(newhosts))
+    yield
+    env.hosts = tmp
 
 
 @parallel
@@ -249,15 +249,10 @@ def upload_libs():
 
 def prepare():
     execute(upload_libs)
-    execute(get_code)
+    execute(git.get_code)
     execute(config)
-    execute(compile_code)
-    execute(compile_ycsb)
-
-
-@parallel
-def set_bool_par(par, val):
-    jmx.set(par, 'true' if val else 'false')
+    execute(git.compile_code)
+    execute(git.compile_ycsb)
 
 
 @task
