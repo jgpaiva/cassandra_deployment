@@ -41,26 +41,22 @@ def collect_results_from_nodes(res_dir):
     node_dir = path.join(res_dir, env.host_string)
     local("mkdir -p {node_dir}".format(**locals()))
 
-    with hide('everything'):
-        for i in [YCSB_RUN_OUT_FILE, YCSB_RUN_ERR_FILE,
-                YCSB_LOAD_OUT_FILE, YCSB_LOAD_ERR_FILE]:
-            _get(i, node_dir)
-        _get(path.join(CODE_DIR, 'conf'), node_dir)
-        _get(LOG_FILE, node_dir)
-
-        git_status = {}
-        for folder in [CODE_DIR, YCSB_CODE_DIR]:
-            with cd(folder):
-                out = run("git log -n 1", pty=False)
-                git_status[folder] = out
-        with open(path.join(node_dir, "git_status.out"), 'w') as f:
-            f.write(str(git_status))
-
-        for parameter in ['LargeReplSet', 'MyLargeReplSet', 'AllReads', 'AllWrites']:
-            with open(path.join(node_dir, parameter + ".log"), 'a') as f:
-                f.writelines(jmx.get(parameter))
-
-
-def _get(source_dir, dest_dir):
     with warn_only():
-        get(source_dir, dest_dir)
+        with hide('everything'):
+            for i in [YCSB_RUN_OUT_FILE, YCSB_RUN_ERR_FILE,
+                    YCSB_LOAD_OUT_FILE, YCSB_LOAD_ERR_FILE]:
+                get(i, node_dir)
+            get(path.join(CODE_DIR, 'conf'), node_dir)
+            get(LOG_FILE, node_dir)
+
+            git_status = {}
+            for folder in [CODE_DIR, YCSB_CODE_DIR]:
+                with cd(folder):
+                    out = run("git log -n 1", pty=False)
+                    git_status[folder] = out
+            with open(path.join(node_dir, "git_status.out"), 'w') as f:
+                f.write(str(git_status))
+
+            for parameter in ['LargeReplSet', 'MyLargeReplSet', 'AllReads', 'AllWrites']:
+                with open(path.join(node_dir, parameter + ".log"), 'a') as f:
+                    f.writelines(jmx.get_value(parameter) or [])

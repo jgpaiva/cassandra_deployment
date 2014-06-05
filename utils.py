@@ -1,6 +1,6 @@
 from fabric.api import warn_only
 from fabric.api import run
-from fabric.api import abort
+from fabric.utils import error
 from fabric.api import env
 from fabric.api import sudo
 from environment import MAX_RETRIES
@@ -24,7 +24,5 @@ def _operation_with_retry(operation, command):
                 return res
             print "WARNING: command '{command}' failed {0} times at node {node}".format(
                 i + 1, **locals())
-        else:
-            abort(
-                "FATAL: command '{command}' failed {retries} times".format(
-                    **locals()))
+    error("FATAL: command '{command}' failed {retries} times".format(
+            **locals()))

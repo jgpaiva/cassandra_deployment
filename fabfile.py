@@ -5,7 +5,7 @@ from fabric.api import parallel
 from fabric.api import sudo
 from fabric.api import env
 from fabric.api import roles
-from fabric.api import execute
+from fabric.api import execute as plain_execute
 from fabric.api import task
 from fabric.api import hide
 from fabric.api import serial
@@ -47,26 +47,25 @@ import git
 
 import jmx
 
+import benchmark as bench
+
 with open(SLAVES_FILE, 'r') as f:
     env.hosts = [line[:-1] for line in f]
 
-env.roledefs['master'] = [env.hosts[0]]
-env.roledefs['ycsbmaster'] = [env.hosts[-1]]
-ycsbmaster = env.hosts[-1]
+env.roledefs['master'] = [env.hosts[-1]]
+env.roledefs['ycsbmaster'] = [env.hosts[0]]
+ycsbmaster = env.hosts[0]
 if cassandra_settings.run_ycsb_on_single_node:
-    env.hosts = env.hosts[:-1]
+    env.hosts = env.hosts[1:]
 
 
 def print_time():
     print "TIME: " + str(dt.now().strftime('%Y-%m-%d %H:%M.%S'))
 
-old_execute = execute
 
-
-def execute_with_time(*args, **kargs):
+def execute(*args, **kargs):
     print_time()
-    old_execute(*args, **kargs)
-execute = execute_with_time
+    plain_execute(*args, **kargs)
 
 
 @parallel
@@ -120,8 +119,8 @@ def start():
         for i in range(MAX_RETRIES):
             cassandra_bin = path.join(CODE_DIR, "bin", "cassandra")
             sudo("screen -d -m {0} -f".format(cassandra_bin), pty=False)
+            time.sleep(2)
             with quiet():
-                time.sleep(10)
                 res = sudo("pgrep -f 'java.*c[a]ssandra'")
                 if not res.failed:
                     break
@@ -215,20 +214,21 @@ def benchmark_round():
         execute(empty_and_config_nodes)
 
     execute(start)
+    time.sleep(30)
     execute(start_check)
-    time.sleep(30)
     execute(setup_ycsb)
-    time.sleep(30)
+    time.sleep(10)
 
     execute(prepare_load)
     do_ycsb('load')
     with set_nodes(env.hosts + [ycsbmaster]):
         execute(killall)
 
+    time.sleep(5)
     execute(start)
-    execute(start_check)
     time.sleep(30)
 
+    execute(start_check)
     execute(prepare_run)
     do_ycsb('run')
 
@@ -236,6 +236,7 @@ def benchmark_round():
     with set_nodes(env.hosts + [ycsbmaster]):
         execute(collect_results)
         execute(killall)
+
 
 @contextmanager
 def set_nodes(newhosts):
@@ -275,7 +276,6 @@ def boot_cassandra():
     execute(config)
 
     execute(start)
-    execute(start_check)
     time.sleep(30)
     execute(setup_ycsb)
     time.sleep(30)
@@ -284,18 +284,4 @@ def boot_cassandra():
 @task
 @roles('master')
 def benchmark():
-    prepare()
-
-    cassandra_settings.save_ops = True
-    cassandra_settings.threads = 1000
-    cassandra_settings.sleep_time = 0
-    cassandra_settings.operationcount = 10000000
-
-    benchmark_round()
-
-    cassandra_settings.max_items_for_large_replication_degree = 0
-    benchmark_round()
-
-    cassandra_settings.large_replication_degree = 12
-    cassandra_settings.max_items_for_large_replication_degree = 20
-    benchmark_round()
+    bench.benchmark()

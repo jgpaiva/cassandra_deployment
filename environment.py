@@ -39,8 +39,8 @@ class cassandra_settings(object):
     large_replication_degree = 4
     ignore_non_local = False
     threads = 30
-    save_ops = False
     select_random_node = False
     operationcount = 400000
     sleep_time = 0
     run_ycsb_on_single_node = True
+    save_ops = True
