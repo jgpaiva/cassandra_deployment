@@ -25,10 +25,7 @@ class DecentRepr(type):
 
     def __repr__(self):
         settings = (var for var in vars(self) if not var.startswith('_'))
-        return (self.__name__ + "{" +
-                ", ".join((i + ":" + str(getattr(self, i)) for i in settings))
-                + "}")
-
+        return str(dict((i,getattr(self, i)) for i in settings))
 
 class cassandra_settings(object):
     __metaclass__ = DecentRepr
@@ -42,5 +39,5 @@ class cassandra_settings(object):
     select_random_node = False
     operationcount = 400000
     sleep_time = 0
-    run_ycsb_on_single_node = True
+    ycsb_nodes = 1
     save_ops = True

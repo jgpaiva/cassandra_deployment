@@ -53,10 +53,11 @@ with open(SLAVES_FILE, 'r') as f:
     env.hosts = [line[:-1] for line in f]
 
 env.roledefs['master'] = [env.hosts[-1]]
-env.roledefs['ycsbmaster'] = [env.hosts[0]]
-ycsbmaster = env.hosts[0]
-if cassandra_settings.run_ycsb_on_single_node:
-    env.hosts = env.hosts[1:]
+env.roledefs['ycsbnodes'] = env.hosts[:cassandra_settings.ycsb_nodes]
+if cassandra_settings.ycsb_nodes:
+    env.hosts = env.hosts[cassandra_settings.ycsb_nodes:]
+else:
+    env.roledefs['ycsbnodes'] = env.hosts
 
 
 def print_time():
@@ -137,18 +138,11 @@ def start_check():
     with hide('everything'):
         sudo("pgrep -f 'java.*c[a]ssandra'")
 
-
-def do_ycsb(operation):
-    if cassandra_settings.run_ycsb_on_single_node:
-        execute(do_centralized_ycsb, operation)
-    else:
-        execute(do_parallel_ycsb, operation)
-
-
 @parallel
-def do_parallel_ycsb(arg):
+@roles('ycsbnodes')
+def do_ycsb(operation):
     hosts = ",".join(env.hosts)
-    if arg == 'load':
+    if operation == 'load':
         threads = 64
         out_file = YCSB_LOAD_OUT_FILE
         err_file = YCSB_LOAD_ERR_FILE
@@ -157,21 +151,16 @@ def do_parallel_ycsb(arg):
         out_file = YCSB_RUN_OUT_FILE
         err_file = YCSB_RUN_ERR_FILE
     with cd(YCSB_CODE_DIR):
-        sudo('./bin/ycsb {arg} cassandra-10 -threads {threads} -p hosts={hosts}'
+        sudo('./bin/ycsb {operation} cassandra-10 -threads {threads} -p hosts={hosts}'
              ' -P workloads/workloadb -s > {out_file} 2> {err_file}'.format(
                  **locals()))
-
-
-@roles('ycsbmaster')
-def do_centralized_ycsb(arg):
-    do_parallel_ycsb(arg)
 
 
 @task
 @roles('master')
 def setup_environment():
     '''get cassandra ready to run from clean state'''
-    with set_nodes(env.hosts + [ycsbmaster]):
+    with set_nodes(env.hosts + env.roledefs['ycsbnodes']):
         execute(killall)
         execute(clean_nodes)
         execute(git.configure)
@@ -210,7 +199,7 @@ def prepare_run():
 
 
 def benchmark_round():
-    with set_nodes(env.hosts + [ycsbmaster]):
+    with set_nodes(env.hosts + env.roledefs['ycsbnodes']):
         execute(empty_and_config_nodes)
 
     execute(start)
@@ -220,8 +209,8 @@ def benchmark_round():
     time.sleep(10)
 
     execute(prepare_load)
-    do_ycsb('load')
-    with set_nodes(env.hosts + [ycsbmaster]):
+    execute(do_ycsb,'load')
+    with set_nodes(env.hosts + env.roledefs['ycsbnodes']):
         execute(killall)
 
     time.sleep(5)
@@ -230,10 +219,10 @@ def benchmark_round():
 
     execute(start_check)
     execute(prepare_run)
-    do_ycsb('run')
+    execute(do_ycsb,'run')
 
     time.sleep(10)
-    with set_nodes(env.hosts + [ycsbmaster]):
+    with set_nodes(env.hosts + env.roledefs['ycsbnodes']):
         execute(collect_results)
         execute(killall)
 
