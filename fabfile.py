@@ -67,23 +67,24 @@ def config():
             options_file = 'cassandra.yaml'
             run('''sed -i 's/seeds:.*/seeds: "{0}"/' cassandra.yaml'''.format(
                 ", ".join(env.hosts)))
-            set_option('listen_address', env.host_string, options_file)
-            set_option('rpc_address', "", options_file)
-            set_option('max_items_for_large_replication_degree',
+            set_option('listen_address:', env.host_string, options_file)
+            set_option('rpc_address:', "", options_file)
+            set_option('max_items_for_large_replication_degree:',
                        cassandra_settings.max_items_for_large_replication_degree, options_file)
-            set_option('large_replication_degree',
+            set_option('large_replication_degree:',
                        cassandra_settings.large_replication_degree, options_file)
-            set_option('ignore_non_local',
+            set_option('ignore_non_local:',
                        cassandra_settings.ignore_non_local, options_file)
-            set_option('select_random_node',
+            set_option('select_random_node:',
                        cassandra_settings.select_random_node, options_file)
         with cd(path.join(YCSB_CODE_DIR, 'workloads')):
-            set_option('operationcount',
+            set_option('operationcount=',
                        cassandra_settings.operationcount, 'workloadb')
-
+            set_option('recordcount=',
+                       cassandra_settings.recordcount, 'workloadb')
 
 def set_option(option, value, file):
-    option_string = 'sed -i "s/^{option}:.*/{option}: {value}/" {file}'.format(
+    option_string = 'sed -i "s/^{option}.*/{option} {value}/" {file}'.format(
         **locals())
     run(option_string)
 
@@ -132,7 +133,7 @@ def start_check():
 def do_ycsb(operation):
     hosts = ",".join(env.hosts)
     if operation == 'load':
-        threads = 64
+        threads = 200
         out_file = YCSB_LOAD_OUT_FILE
         err_file = YCSB_LOAD_ERR_FILE
     else:

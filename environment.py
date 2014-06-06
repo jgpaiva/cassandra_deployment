@@ -64,6 +64,7 @@ class cassandra_settings(object):
     threads = 30
     select_random_node = False
     operationcount = 400000
+    recordcount = 1000000
     sleep_time = 0
     ycsb_nodes = 1
     save_ops = True

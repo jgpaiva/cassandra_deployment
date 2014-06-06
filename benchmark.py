@@ -1,14 +1,14 @@
-import fabfile as f
-
 def set_pars():
     from environment import cassandra_settings
-    cassandra_settings.ycsb_nodes = 2
+    cassandra_settings.ycsb_nodes = 4
     cassandra_settings.threads = 1500
-    cassandra_settings.operationcount = 99000000
+    cassandra_settings.operationcount = 5000000
+    cassandra_settings.recordcount = 1000000
 
 
 def benchmark():
     from environment import cassandra_settings as settings
+    import fabfile as f
     for i in range(3):
         settings.replication_factor = 2
         settings.large_replication_degree = 4
