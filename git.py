@@ -3,6 +3,7 @@ from fabric.api import run
 from fabric.api import cd
 from fabric.api import parallel
 from fabric.api import hide
+from fabric.api import task
 
 from environment import CODE_DIR
 from environment import YCSB_CODE_DIR
@@ -41,6 +42,7 @@ def compile_code():
             run("ant -q clean > /dev/null")
             run_with_retry("ant -q")
 
+@task
 @parallel
 def compile_ycsb():
     with hide('stdout'):

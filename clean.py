@@ -15,7 +15,7 @@ from environment import YCSB_LOAD_ERR_FILE
 
 
 @parallel
-def killall():
+def kill():
     '''kill all java processes'''
     with quiet():
         sudo("killall -q java")
@@ -23,7 +23,7 @@ def killall():
 
 
 @parallel
-def clear_logs():
+def logs():
     '''delete cassandra logs'''
     with quiet():
         sudo("rm -f {0}/*".format(LOG_FOLDER))
@@ -33,7 +33,7 @@ def clear_logs():
 
 
 @parallel
-def clear_state():
+def state():
     '''delete all cassandra persistent state'''
     with quiet():
         sudo("rm -rf {0}".format(CASSANDRA_VAR))
@@ -44,11 +44,11 @@ def clear_state():
 
 
 @parallel
-def delete_git():
+def git():
     for repo in [CODE_DIR, YCSB_CODE_DIR]:
         run("rm -rf {0}".format(repo))
 
 
 @parallel
-def clean_nodes():
+def nodes():
     run("rm -rf *")

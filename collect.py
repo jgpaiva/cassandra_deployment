@@ -28,7 +28,7 @@ from datetime import datetime as dt
 
 @task
 @roles('master')
-def collect_results():
+def collect():
     res_dir = "results." + str(dt.now().strftime('%Y%m%d.%H%M%S'))
     execute(collect_results_from_nodes, res_dir)
     out_file = path.join(res_dir, 'settings.out')

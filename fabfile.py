@@ -22,12 +22,12 @@ import time
 
 from datetime import datetime as dt
 
+import environment
 from environment import CODE_DIR
 from environment import YCSB_CODE_DIR
 from environment import SAVE_OPS_PAR
 from environment import IGNORE_NON_LOCAL_PAR
 from environment import MAX_ITEMS_FOR_LARGE_REPL_PAR
-from environment import SLAVES_FILE
 from environment import MAX_RETRIES
 from environment import SLEEP_TIME_PAR
 from environment import cassandra_settings
@@ -36,12 +36,9 @@ from environment import YCSB_RUN_ERR_FILE
 from environment import YCSB_LOAD_OUT_FILE
 from environment import YCSB_LOAD_ERR_FILE
 
-from clean import killall
-from clean import clear_logs
-from clean import clear_state
-from clean import clean_nodes
+import clean
 
-from collect import collect_results
+import collect
 
 import git
 
@@ -49,16 +46,8 @@ import jmx
 
 import benchmark as bench
 
-with open(SLAVES_FILE, 'r') as f:
-    env.hosts = [line[:-1] for line in f]
-
-env.roledefs['master'] = [env.hosts[-1]]
-env.roledefs['ycsbnodes'] = env.hosts[:cassandra_settings.ycsb_nodes]
-if cassandra_settings.ycsb_nodes:
-    env.hosts = env.hosts[cassandra_settings.ycsb_nodes:]
-else:
-    env.roledefs['ycsbnodes'] = env.hosts
-
+bench.set_pars()
+environment.init()
 
 def print_time():
     print "TIME: " + str(dt.now().strftime('%Y-%m-%d %H:%M.%S'))
@@ -161,19 +150,19 @@ def do_ycsb(operation):
 def setup_environment():
     '''get cassandra ready to run from clean state'''
     with set_nodes(env.hosts + env.roledefs['ycsbnodes']):
-        execute(killall)
-        execute(clean_nodes)
+        execute(clean.kill)
+        execute(clean.nodes)
         execute(git.configure)
 
-        execute(clear_state)
-        execute(clear_logs)
+        execute(clean.state)
+        execute(clean.logs)
 
 
 @parallel
 def empty_and_config_nodes():
-    killall()
-    clear_state()
-    clear_logs()
+    clean.kill()
+    clean.state()
+    clean.logs()
     config()
 
 
@@ -211,7 +200,7 @@ def benchmark_round():
     execute(prepare_load)
     execute(do_ycsb,'load')
     with set_nodes(env.hosts + env.roledefs['ycsbnodes']):
-        execute(killall)
+        execute(clean.kill)
 
     time.sleep(5)
     execute(start)
@@ -223,8 +212,8 @@ def benchmark_round():
 
     time.sleep(10)
     with set_nodes(env.hosts + env.roledefs['ycsbnodes']):
-        execute(collect_results)
-        execute(killall)
+        execute(collect.collect)
+        execute(clean.kill)
 
 
 @contextmanager
@@ -258,9 +247,9 @@ def fork(cmd):
 @roles('master')
 def boot_cassandra():
     prepare()
-    execute(clear_state)
-    execute(clear_logs)
-    execute(killall)
+    execute(clean.state)
+    execute(clean.logs)
+    execute(clean.kill)
 
     execute(config)
 
@@ -273,4 +262,6 @@ def boot_cassandra():
 @task
 @roles('master')
 def benchmark():
+    with set_nodes(env.hosts + env.roledefs['ycsbnodes']):
+        prepare()
     bench.benchmark()

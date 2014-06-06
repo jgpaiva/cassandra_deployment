@@ -1,3 +1,6 @@
+import re
+from fabric.api import env
+
 CODE_DIR = "/home/jgpaiva/cassandra"
 YCSB_CODE_DIR = "/home/jgpaiva/YCSB"
 BASE_GIT_DIR = "/home/jgpaiva/nas/autoreplicator/"
@@ -26,6 +29,29 @@ class DecentRepr(type):
     def __repr__(self):
         settings = (var for var in vars(self) if not var.startswith('_'))
         return str(dict((i,getattr(self, i)) for i in settings))
+
+_pattern = r"""
+     [-+]? # optional sign
+     (?:
+         (?: \d* \. \d+ ) # .1 .12 .123 etc 9.1 etc 98.1 etc
+         |
+         (?: \d+ \.? ) # 1. 12. 123. etc 1 12 123 etc
+     )
+     # followed by optional exponent part if desired
+     (?: [Ee] [+-]? \d+ ) ?
+     """
+numeric_const_pattern = re.compile(_pattern, re.VERBOSE)
+
+def init():
+    with open(SLAVES_FILE, 'r') as f:
+        env.hosts = [line[:-1] for line in f]
+
+    env.roledefs['master'] = [env.hosts[-1]]
+    env.roledefs['ycsbnodes'] = env.hosts[:cassandra_settings.ycsb_nodes]
+    if cassandra_settings.ycsb_nodes:
+        env.hosts = env.hosts[cassandra_settings.ycsb_nodes:]
+    else:
+        env.roledefs['ycsbnodes'] = env.hosts
 
 class cassandra_settings(object):
     __metaclass__ = DecentRepr
