@@ -132,8 +132,9 @@ def start_check():
 
 @parallel
 @roles('ycsbnodes')
-def do_ycsb(operation):
-    hosts = ",".join(env.hosts)
+def run_ycsb(operation):
+    myindex = env.roledefs['ycsbnodes'].index(env.host_string)
+    hosts = env.hosts[myindex]
     if operation == 'load':
         threads = 200
         out_file = YCSB_LOAD_OUT_FILE
@@ -149,7 +150,7 @@ def do_ycsb(operation):
                     ' -P workloads/workloadb -s > {out_file} 2> {err_file}'.format(
                         **locals()))
         except CommandTimeout:
-            print "[ERROR]: YCSB %s failed at node %s due to timeout" % (operation, env.host_string)
+            print "[ERROR] YCSB %s failed at node %s due to timeout" % (operation, env.host_string)
 
 
 @task
@@ -195,6 +196,9 @@ def prepare_run():
 
 
 def benchmark_round():
+    print """\
+******************   Starting Benchmark Round  *********************"""
+    print str(cassandra_settings)
     with set_nodes(env.hosts + env.roledefs['ycsbnodes']):
         execute(empty_and_config_nodes)
 
@@ -205,7 +209,7 @@ def benchmark_round():
     time.sleep(10)
 
     execute(prepare_load)
-    execute(do_ycsb,'load')
+    execute(run_ycsb,'load')
     with set_nodes(env.hosts + env.roledefs['ycsbnodes']):
         execute(clean.kill)
 
@@ -215,7 +219,7 @@ def benchmark_round():
 
     execute(start_check)
     execute(prepare_run)
-    execute(do_ycsb,'run')
+    execute(run_ycsb,'run')
 
     time.sleep(10)
     with set_nodes(env.hosts + env.roledefs['ycsbnodes']):

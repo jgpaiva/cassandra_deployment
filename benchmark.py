@@ -1,8 +1,7 @@
 def set_pars():
     from environment import cassandra_settings
-    cassandra_settings.ycsb_nodes = 4
     cassandra_settings.threads = 500
-    cassandra_settings.operationcount = 500000
+    cassandra_settings.operationcount = 250000
     cassandra_settings.recordcount = 100000
     cassandra_settings.timeout = 60*25
 

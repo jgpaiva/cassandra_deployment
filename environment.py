@@ -47,11 +47,10 @@ def init():
         env.hosts = [line[:-1] for line in f]
 
     env.roledefs['master'] = [env.hosts[-1]]
+    cassandra_settings.ycsb_nodes = len(env.hosts) / 2
     env.roledefs['ycsbnodes'] = env.hosts[:cassandra_settings.ycsb_nodes]
-    if cassandra_settings.ycsb_nodes:
-        env.hosts = env.hosts[cassandra_settings.ycsb_nodes:]
-    else:
-        env.roledefs['ycsbnodes'] = env.hosts
+    env.hosts = env.hosts[cassandra_settings.ycsb_nodes:]
+    cassandra_settings.processing_nodes = len(env.hosts)
 
 class cassandra_settings(object):
     __metaclass__ = DecentRepr
@@ -66,5 +65,4 @@ class cassandra_settings(object):
     operationcount = 400000
     recordcount = 1000000
     sleep_time = 0
-    ycsb_nodes = 1
     save_ops = True

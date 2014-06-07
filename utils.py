@@ -22,7 +22,7 @@ def _operation_with_retry(operation, command):
             res = operation(command)
             if not res.failed:
                 return res
-            print "WARNING: command '{command}' failed {0} times at node {node}".format(
+            print "[WARNING] command '{command}' failed {0} times at node {node}".format(
                 i + 1, **locals())
-    error("FATAL: command '{command}' failed {retries} times".format(
+    error("[ERROR] command '{command}' failed {retries} times".format(
             **locals()))

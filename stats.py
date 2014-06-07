@@ -22,14 +22,14 @@ def main():
                     run_out = f.readlines()
                 thrp_strs = filter(lambda x: "Throughput" in x,run_out)
                 throughput.append(thrp_strs[0])
-            throughput = [get_last_number(t) for t in throughput]
+            throughput = sum([get_last_number(t) for t in throughput])
         except:
             throughput = "N/A"
 
-        print "%s %s" % (relevant_settings,throughput)
+        print "%s %s %s" % (relevant_settings,throughput,directory)
 
 def get_last_number(string):
     val = numeric_const_pattern.findall(string)
-    return val[-1]
+    return float(val[-1])
 
 main()
