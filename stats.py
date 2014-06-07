@@ -15,12 +15,16 @@ def main():
         relevant_settings = ", ".join(
             map(lambda x: "%s:%s" % (x, settings[x]), keys))
 
-        throughput = []
-        for run_out in glob(directory+"/*/run.out"):
-            with open(run_out,'r') as f:
-                run_out = f.readlines()
-            throughput.append(filter(lambda x: "Throughput" in x,run_out)[0])
-        throughput = [get_last_number(t) for t in throughput]
+        try:
+            throughput = []
+            for run_out in glob(directory+"/*/run.out"):
+                with open(run_out,'r') as f:
+                    run_out = f.readlines()
+                thrp_strs = filter(lambda x: "Throughput" in x,run_out)
+                throughput.append(thrp_strs[0])
+            throughput = [get_last_number(t) for t in throughput]
+        except:
+            throughput = "N/A"
 
         print "%s %s" % (relevant_settings,throughput)
 

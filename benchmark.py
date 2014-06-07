@@ -1,9 +1,10 @@
 def set_pars():
     from environment import cassandra_settings
     cassandra_settings.ycsb_nodes = 4
-    cassandra_settings.threads = 1500
-    cassandra_settings.operationcount = 5000000
-    cassandra_settings.recordcount = 1000000
+    cassandra_settings.threads = 500
+    cassandra_settings.operationcount = 500000
+    cassandra_settings.recordcount = 100000
+    cassandra_settings.timeout = 60*25
 
 
 def benchmark():
@@ -31,6 +32,11 @@ def benchmark():
         f.benchmark_round()
 
         settings.replication_factor = 2
+        settings.large_replication_degree = 4
+        settings.max_items_for_large_replication_degree = 200
+        f.benchmark_round()
+
+        settings.replication_factor = 2
         settings.large_replication_degree = 2
         settings.max_items_for_large_replication_degree = 20
         f.benchmark_round()
@@ -48,4 +54,14 @@ def benchmark():
         settings.replication_factor = 2
         settings.large_replication_degree = 7
         settings.max_items_for_large_replication_degree = 20
+        f.benchmark_round()
+
+        settings.replication_factor = 3
+        settings.large_replication_degree = 3
+        settings.max_items_for_large_replication_degree = 0
+        f.benchmark_round()
+
+        settings.replication_factor = 4
+        settings.large_replication_degree = 4
+        settings.max_items_for_large_replication_degree = 0
         f.benchmark_round()

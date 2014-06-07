@@ -13,6 +13,8 @@ from fabric.api import put
 from fabric.api import warn_only
 from fabric.api import quiet
 from fabric.api import abort
+from fabric.api import settings
+from fabric.exceptions import CommandTimeout
 
 from os import path
 
@@ -141,9 +143,13 @@ def do_ycsb(operation):
         out_file = YCSB_RUN_OUT_FILE
         err_file = YCSB_RUN_ERR_FILE
     with cd(YCSB_CODE_DIR):
-        sudo('./bin/ycsb {operation} cassandra-10 -threads {threads} -p hosts={hosts}'
-             ' -P workloads/workloadb -s > {out_file} 2> {err_file}'.format(
-                 **locals()))
+        try:
+            with settings(command_timeout=cassandra_settings.timeout):
+                sudo('./bin/ycsb {operation} cassandra-10 -threads {threads} -p hosts={hosts}'
+                    ' -P workloads/workloadb -s > {out_file} 2> {err_file}'.format(
+                        **locals()))
+        except CommandTimeout:
+            print "[ERROR]: YCSB %s failed at node %s due to timeout" % (operation, env.host_string)
 
 
 @task
@@ -263,6 +269,10 @@ def boot_cassandra():
 @task
 @roles('master')
 def benchmark():
+    print """\
+********************************************************************
+*                         benchmark start                          *
+********************************************************************"""
     with set_nodes(env.hosts + env.roledefs['ycsbnodes']):
         prepare()
     bench.benchmark()
