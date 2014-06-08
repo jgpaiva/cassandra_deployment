@@ -26,7 +26,10 @@ def main():
         except:
             throughput = "N/A"
 
-        print "%s %s %s" % (relevant_settings,throughput,directory)
+        try:
+            print "%s\t%.0f %s" % (relevant_settings,throughput,directory)
+        except TypeError:
+            print "%s\t%s %s" % (relevant_settings,throughput,directory)
 
 def get_last_number(string):
     val = numeric_const_pattern.findall(string)

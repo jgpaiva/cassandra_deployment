@@ -18,6 +18,13 @@ from environment import YCSB_LOAD_ERR_FILE
 def kill():
     '''kill all java processes'''
     with quiet():
+        sudo("killall -9 -q java")
+        run("killall -9 -q java")
+
+@parallel
+def cleankill():
+    '''kill all java processes'''
+    with quiet():
         sudo("killall -q java")
         run("killall -q java")
 

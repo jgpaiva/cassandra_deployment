@@ -79,6 +79,10 @@ def config():
                        cassandra_settings.ignore_non_local, options_file)
             set_option('select_random_node:',
                        cassandra_settings.select_random_node, options_file)
+            set_option('data_placement_rounds_duration:',
+                       cassandra_settings.data_placement_rounds_duration, options_file)
+            if not cassandra_settings.debug_logs:
+                run("sed -i 's/DEBUG/INFO/' logback.xml")
         with cd(path.join(YCSB_CODE_DIR, 'workloads')):
             set_option('operationcount=',
                        cassandra_settings.operationcount, 'workloadb')
@@ -211,7 +215,7 @@ def benchmark_round():
     execute(prepare_load)
     execute(run_ycsb,'load')
     with set_nodes(env.hosts + env.roledefs['ycsbnodes']):
-        execute(clean.kill)
+        execute(clean.cleankill)
 
     time.sleep(5)
     execute(start)
