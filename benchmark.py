@@ -1,5 +1,6 @@
 def set_pars():
     from environment import cassandra_settings
+    cassandra_settings.run_original = True
     cassandra_settings.threads = 1000
     cassandra_settings.operationcount = 500000
     cassandra_settings.recordcount = 100000
@@ -16,27 +17,12 @@ def benchmark():
         settings.max_items_for_large_replication_degree = 0
         f.benchmark_round()
 
-        settings.replication_factor = 1
+        settings.replication_factor = 2
         settings.large_replication_degree = 2
         settings.max_items_for_large_replication_degree = 40
         f.benchmark_round()
 
-        settings.replication_factor = 1
+        settings.replication_factor = 3
         settings.large_replication_degree = 3
-        settings.max_items_for_large_replication_degree = 40
-        f.benchmark_round()
-
-        settings.replication_factor = 2
-        settings.large_replication_degree = 2
-        settings.max_items_for_large_replication_degree = 0
-        f.benchmark_round()
-
-        settings.replication_factor = 2
-        settings.large_replication_degree = 4
-        settings.max_items_for_large_replication_degree = 40
-        f.benchmark_round()
-
-        settings.replication_factor = 2
-        settings.large_replication_degree = 7
         settings.max_items_for_large_replication_degree = 40
         f.benchmark_round()

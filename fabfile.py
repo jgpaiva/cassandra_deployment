@@ -59,6 +59,23 @@ def execute(*args, **kargs):
     print_time()
     plain_execute(*args, **kargs)
 
+@task
+@parallel
+def ping_nodes():
+    while True:
+        with warn_only():
+            with hide('everything'):
+                execute(ls_nodes,env.host_string)
+        time.sleep(10)
+        print ""
+        print_time()
+
+@task
+@parallel
+def ls_nodes(other_node):
+    with hide('everything'):
+        run("ls")
+
 
 @parallel
 def config():
@@ -180,23 +197,25 @@ def empty_and_config_nodes():
 
 @parallel
 def prepare_load():
-    with hide('running'):
-        jmx.set_bool_value(SAVE_OPS_PAR, False)
-        jmx.set_bool_value(IGNORE_NON_LOCAL_PAR, False)
-        jmx.set_value(MAX_ITEMS_FOR_LARGE_REPL_PAR, 0)
-        jmx.set_value(MAX_ITEMS_FOR_LARGE_REPL_PAR, 0)
-        jmx.set_value(SLEEP_TIME_PAR, 0)
+    if not cassandra_settings.run_original:
+        with hide('running'):
+            jmx.set_bool_value(SAVE_OPS_PAR, False)
+            jmx.set_bool_value(IGNORE_NON_LOCAL_PAR, False)
+            jmx.set_value(MAX_ITEMS_FOR_LARGE_REPL_PAR, 0)
+            jmx.set_value(MAX_ITEMS_FOR_LARGE_REPL_PAR, 0)
+            jmx.set_value(SLEEP_TIME_PAR, 0)
 
 
 @parallel
 def prepare_run():
-    with hide('running'):
-        jmx.set_bool_value(SAVE_OPS_PAR, cassandra_settings.save_ops)
-        jmx.set_bool_value(IGNORE_NON_LOCAL_PAR,
-                           cassandra_settings.ignore_non_local)
-        jmx.set_value(MAX_ITEMS_FOR_LARGE_REPL_PAR,
-                      cassandra_settings.max_items_for_large_replication_degree)
-        jmx.set_value(SLEEP_TIME_PAR, cassandra_settings.sleep_time)
+    if not cassandra_settings.run_original:
+        with hide('running'):
+            jmx.set_bool_value(SAVE_OPS_PAR, cassandra_settings.save_ops)
+            jmx.set_bool_value(IGNORE_NON_LOCAL_PAR,
+                            cassandra_settings.ignore_non_local)
+            jmx.set_value(MAX_ITEMS_FOR_LARGE_REPL_PAR,
+                        cassandra_settings.max_items_for_large_replication_degree)
+            jmx.set_value(SLEEP_TIME_PAR, cassandra_settings.sleep_time)
 
 
 def benchmark_round():
