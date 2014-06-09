@@ -103,7 +103,7 @@ _c['select_random_node'] = False
 _c['operationcount'] = 400000
 _c['recordcount'] = 1000000
 _c['sleep_time'] = 0
-_c['save_ops'] = True
+_c['save_ops'] = False
 _c['debug_logs'] = False
 _c['data_placement_rounds_duration'] = 5000
 _c['timeout'] = 60*60
@@ -111,3 +111,5 @@ _c['processing_nodes'] = -1
 _c['ycsb_nodes'] = -1
 
 _c.freeze()
+
+env.colorize_errors = True

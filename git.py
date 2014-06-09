@@ -20,18 +20,20 @@ from os import path
 def get_code():
     '''update git'''
     with hide('stdout'):
-        with cd(CODE_DIR):
-            run("git reset --hard")
-            run_with_retry("git fetch -q origin")
-            if cassandra_settings.run_original:
-                run("git checkout -q cassandra-2.1")
-                run_with_retry("git pull -q origin cassandra-2.1")
-            else:
-                run("git checkout -q autoreplicator")
-                run_with_retry("git pull -q origin autoreplicator")
-        with cd(YCSB_CODE_DIR):
-            run("git checkout -q master")
-            run_with_retry("git pull -q origin")
+        if cassandra_settings.run_original:
+            branch = 'cassandra-2.1'
+        else:
+            branch = 'autoreplicator'
+        for directory, branch in [(CODE_DIR, branch), (YCSB_CODE_DIR, 'master')]:
+            _get_code(branch, directory)
+
+
+def _get_code(branch, working_dir):
+    with cd(working_dir):
+        run("git reset --hard")
+        run_with_retry("git fetch -q origin")
+        run("git checkout -q {branch}".format(**locals()))
+        run_with_retry("git pull -q origin {branch}".format(**locals()))
 
 
 @parallel
@@ -42,23 +44,24 @@ def compile_code():
             run("ant -q clean > /dev/null")
             run_with_retry("ant -q")
 
+
 @task
 @parallel
 def compile_ycsb():
     with hide('stdout'):
-        with cd(path.join(YCSB_CODE_DIR,'core')):
+        with cd(path.join(YCSB_CODE_DIR, 'core')):
             run('mvn -q -Dmaven.test.skip=true clean install')
-        with cd(path.join(YCSB_CODE_DIR,'cassandra')):
+        with cd(path.join(YCSB_CODE_DIR, 'cassandra')):
             run('mvn -q -Dmaven.test.skip=true clean install')
 
 
 @parallel
 def configure():
     '''setup git on hosts'''
-    run('git config --global user.email "you@example.com"')
-    run('git config --global user.name "Your Name"')
+    run('git config --global user.email "fake@mail.com"')
+    run('git config --global user.name "Fake Name"')
     for repo, branch in [('cassandra', 'cassandra-2.1'), ('YCSB', 'master')]:
-        repo_dir = "ssh://{0}{1}".format(SERVER_URL, path.join(BASE_GIT_DIR, repo))
-        run_with_retry("git clone {0}".format(repo_dir))
+        repo_url = "ssh://" + SERVER_URL + path.join(BASE_GIT_DIR, repo)
+        run_with_retry("git clone {repo_url}".format(**locals()))
         with cd(repo):
-            run("git checkout {0}".format(branch))
+            run("git checkout {branch}".format(**locals()))

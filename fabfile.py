@@ -1,3 +1,4 @@
+from __future__ import print_function
 from __future__ import with_statement
 from fabric.api import run
 from fabric.api import cd
@@ -52,7 +53,7 @@ bench.set_pars()
 environment.init()
 
 def print_time():
-    print "TIME: " + str(dt.now().strftime('%Y-%m-%d %H:%M.%S'))
+    print("TIME: " + str(dt.now().strftime('%Y-%m-%d %H:%M.%S')))
 
 
 def execute(*args, **kargs):
@@ -67,7 +68,7 @@ def ping_nodes():
             with hide('everything'):
                 execute(ls_nodes,env.host_string)
         time.sleep(10)
-        print ""
+        print("")
         print_time()
 
 @task
@@ -80,7 +81,7 @@ def ls_nodes(other_node):
 @parallel
 def config():
     '''setup cassandra configuration parameters'''
-    print 'setting up config at {0}'.format(env.host_string)
+    print('setting up config at {0}'.format(env.host_string))
     with hide('running'):
         with cd(path.join(CODE_DIR, 'conf')):
             options_file = 'cassandra.yaml'
@@ -171,7 +172,7 @@ def run_ycsb(operation):
                     ' -P workloads/workloadb -s > {out_file} 2> {err_file}'.format(
                         **locals()))
         except CommandTimeout:
-            print "[ERROR] YCSB %s failed at node %s due to timeout" % (operation, env.host_string)
+            print("[ERROR] YCSB %s failed at node %s due to timeout" % (operation, env.host_string))
 
 
 @task
@@ -219,9 +220,9 @@ def prepare_run():
 
 
 def benchmark_round():
-    print """\
-******************   Starting Benchmark Round  *********************"""
-    print str(cassandra_settings)
+    print("""\
+******************   Starting Benchmark Round  *********************""")
+    print(str(cassandra_settings))
     with set_nodes(env.hosts + env.roledefs['ycsbnodes']):
         execute(empty_and_config_nodes)
 
@@ -296,10 +297,10 @@ def boot_cassandra():
 @task
 @roles('master')
 def benchmark():
-    print """\
+    print("""\
 ********************************************************************
 *                         benchmark start                          *
-********************************************************************"""
+********************************************************************""")
     with set_nodes(env.hosts + env.roledefs['ycsbnodes']):
         prepare()
     bench.benchmark()

@@ -17,12 +17,12 @@ def sudo_with_retry(command):
 def _operation_with_retry(operation, command):
     retries = MAX_RETRIES
     node = env.host_string
-    with warn_only():
-        for i in range(retries):
+    for i in range(retries):
+        with warn_only():
             res = operation(command)
             if not res.failed:
                 return res
-            print "[WARNING] command '{command}' failed {0} times at node {node}".format(
-                i + 1, **locals())
-    error("[ERROR] command '{command}' failed {retries} times".format(
+            error("Command '{command}' failed {0} times at node {node}".format(
+                i + 1, **locals()))
+    error("Command '{command}' failed {retries} times. Aborted".format(
             **locals()))
