@@ -62,20 +62,9 @@ def execute(*args, **kargs):
 
 @task
 @parallel
-def ping_nodes():
-    while True:
-        with warn_only():
-            with hide('everything'):
-                execute(ls_nodes,env.host_string)
-        time.sleep(10)
-        print("")
-        print_time()
-
-@task
-@parallel
-def ls_nodes(other_node):
-    with hide('everything'):
-        run("ls")
+@roles('ycsbnodes')
+def monitor():
+    run("tail -F {YCSB_RUN_ERR_FILE} {YCSB_LOAD_ERR_FILE}".format(**globals()))
 
 
 @parallel
@@ -117,12 +106,21 @@ def set_option(option, value, file):
 def setup_ycsb():
     '''setup cassandra tables for ycsb'''
     with cd(path.join(CODE_DIR, 'bin')):
-        run('''./cassandra-cli --host {0}'''.format(env.roledefs['master'][0]) +
+        run('''./cqlsh {0}'''.format(env.roledefs['master'][0])+
             r'''<<EOF
-create keyspace usertable with placement_strategy = 'org.apache.cassandra.locator.SimpleStrategy' and strategy_options = [{replication_factor: ''' + str(cassandra_settings.replication_factor) + '''}];
-use usertable;
-create column family data with column_type = 'Standard' and comparator = 'UTF8Type';
-exit;
+create keyspace ycsb WITH REPLICATION = {'class' : 'SimpleStrategy', 'replication_factor': ''' + str(cassandra_settings.replication_factor) +''' };
+create table ycsb.usertable (
+      y_id varchar primary key,
+      field0 varchar,
+      field1 varchar,
+      field2 varchar,
+      field3 varchar,
+      field4 varchar,
+      field5 varchar,
+      field6 varchar,
+      field7 varchar,
+      field8 varchar,
+      field9 varchar);
 EOF
 ''')
 
@@ -168,7 +166,7 @@ def run_ycsb(operation):
     with cd(YCSB_CODE_DIR):
         try:
             with settings(command_timeout=cassandra_settings.timeout):
-                sudo('./bin/ycsb {operation} cassandra-10 -threads {threads} -p hosts={hosts}'
+                sudo('./bin/ycsb {operation} cassandra-10 -threads {threads} -p host={hosts}'
                     ' -P workloads/workloadb -s > {out_file} 2> {err_file}'.format(
                         **locals()))
         except CommandTimeout:
@@ -234,14 +232,9 @@ def benchmark_round():
 
     execute(prepare_load)
     execute(run_ycsb,'load')
-    with set_nodes(env.hosts + env.roledefs['ycsbnodes']):
-        execute(clean.cleankill)
 
-    time.sleep(5)
-    execute(start)
     time.sleep(30)
 
-    execute(start_check)
     execute(prepare_run)
     execute(run_ycsb,'run')
 
@@ -265,17 +258,18 @@ def upload_libs():
 
 
 def prepare():
-    execute(upload_libs)
-    execute(git.get_code)
-    execute(config)
-    execute(git.compile_code)
-    execute(git.compile_ycsb)
+    with set_nodes(env.hosts + env.roledefs['ycsbnodes']):
+        execute(upload_libs)
+        execute(git.get_code)
+        execute(config)
+        execute(git.compile_code)
+        execute(git.compile_ycsb)
 
 
 @task
 def fork(cmd):
     with warn_only():
-        sudo(cmd)
+        run(cmd)
 
 
 @task
@@ -301,6 +295,5 @@ def benchmark():
 ********************************************************************
 *                         benchmark start                          *
 ********************************************************************""")
-    with set_nodes(env.hosts + env.roledefs['ycsbnodes']):
-        prepare()
+    prepare()
     bench.benchmark()

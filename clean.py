@@ -6,6 +6,7 @@ from fabric.api import quiet
 from fabric.api import cd
 from environment import LOG_FOLDER
 from environment import CASSANDRA_VAR
+from environment import CASSANDRA_DATA
 from environment import CODE_DIR
 from environment import YCSB_CODE_DIR
 from environment import YCSB_RUN_OUT_FILE
@@ -44,6 +45,7 @@ def state():
     '''delete all cassandra persistent state'''
     with quiet():
         sudo("rm -rf {0}".format(CASSANDRA_VAR))
+        sudo("rm -rf {0}".format(CASSANDRA_DATA))
         with cd(CODE_DIR):
             sudo("rm -rf *.hprof")
         with cd(YCSB_CODE_DIR):
@@ -53,9 +55,10 @@ def state():
 @parallel
 def git():
     for repo in [CODE_DIR, YCSB_CODE_DIR]:
-        run("rm -rf {0}".format(repo))
+        sudo("rm -rf {0}".format(repo))
 
 
 @parallel
 def nodes():
-    run("rm -rf *")
+    with cd("~"):
+        sudo("rm -rf *")

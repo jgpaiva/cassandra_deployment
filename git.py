@@ -33,7 +33,7 @@ def _get_code(branch, working_dir):
         run("git reset --hard")
         run_with_retry("git fetch -q origin")
         run("git checkout -q {branch}".format(**locals()))
-        run_with_retry("git pull -q origin {branch}".format(**locals()))
+        run_with_retry("git pull -f -q origin {branch}".format(**locals()))
 
 
 @parallel
