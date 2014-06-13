@@ -295,5 +295,7 @@ def benchmark():
 ********************************************************************
 *                         benchmark start                          *
 ********************************************************************""")
-    prepare()
-    bench.benchmark()
+    for should_prepare in bench.configs():
+        if should_prepare:
+            prepare()
+        benchmark_round()
