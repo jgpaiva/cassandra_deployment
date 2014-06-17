@@ -6,12 +6,14 @@ Usage:
   stats.py --top
   stats.py --check_items
   stats.py --large_repl
+  stats.py --latency
 
 Options:
   --operations   Calculate per-node operations
   --check_items  Calculate per-node top items len
   --top          Calculate per-node top items
   --large_repl   Calculate number of large_repl items
+  --latency      Calculate average latency
 """
 
 from glob import glob
@@ -43,7 +45,9 @@ def printval(funct):
 @iterdirs
 @printval
 def operations(directory):
-    return list(sorted(_operations(directory)))
+    val = list(_operations(directory))
+    val = [[int(i[j]) for i in val] for j in range(2)]
+    return [(sum(i), i) for i in val]
 
 @iterdirs
 @printval
@@ -54,6 +58,15 @@ def large_repl(directory):
 @printval
 def top(directory):
     return list(_top(directory,5))
+
+@iterdirs
+@printval
+def latency(directory):
+    val = list(_latency(directory))
+    return (int(sum(i[0] for i in val)/len(val)),
+            int(sum(i[1] for i in val)/len(val)),
+            int(sum(i[2] for i in val)/len(val)),
+            int(sum(i[3] for i in val)/len(val)))
 
 @iterdirs
 @printval
@@ -79,6 +92,22 @@ def _throughputs(directory):
         with open(run_out,'r') as f:
             thrp_strs = filter(lambda x: x.startswith("[OV") and "Throughput" in x,f)
             yield get_last_number(thrp_strs[0])
+
+def _latency(directory):
+    for run_out in glob(directory+"/*/run.out"):
+        with open(run_out,'r') as f:
+            string = filter(lambda x: x.startswith("[UP") and "AverageLatency" in x,f)
+            avg_update = get_last_number(string[0])
+        with open(run_out,'r') as f:
+            string = filter(lambda x: x.startswith("[UP") and "95thPercentileLatency" in x,f)
+            ninety_update = get_last_number(string[0])
+        with open(run_out,'r') as f:
+            string = filter(lambda x: x.startswith("[READ") and "AverageLatency" in x,f)
+            avg_read = get_last_number(string[0])
+        with open(run_out,'r') as f:
+            string = filter(lambda x: x.startswith("[READ") and "99thPercentileLatency" in x,f)
+            ninety_read = get_last_number(string[0])
+        yield (avg_update,ninety_update,avg_read,ninety_read)
 
 def _large_repl(directory):
     for run_out in glob(directory+"/*/LargeRepl*"):
@@ -130,5 +159,7 @@ if __name__ == '__main__':
         check_items()
     elif arguments['--large_repl']:
         large_repl()
+    elif arguments['--latency']:
+        latency()
     else:
         throughput()
