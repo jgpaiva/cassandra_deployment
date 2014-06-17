@@ -1,15 +1,18 @@
 def set_pars():
     from environment import cassandra_settings
     cassandra_settings.run_original = False
-    cassandra_settings.threads = 200
-    #cassandra_settings.operationcount = 25000000
+    cassandra_settings.threads = 500
+    #cassandra_settings.operationcount = 5000000
     #cassandra_settings.recordcount = 1000000
-    cassandra_settings.operationcount = 5000000
-    cassandra_settings.recordcount = 1000000
+    cassandra_settings.operationcount = 50000
+    cassandra_settings.recordcount = 1
     cassandra_settings.timeout = 60*40 # 40mins
     cassandra_settings.data_placement_rounds_duration = 2000 #2 sec
     cassandra_settings.save_ops = True
     cassandra_settings.debug_logs = False
+    cassandra_settings.write_consistency = 'ONE'
+    cassandra_settings.readproportion = '0.99'
+    cassandra_settings.updateproportion = '0.01'
 
 
 def configs():

@@ -38,6 +38,7 @@ from environment import YCSB_RUN_OUT_FILE
 from environment import YCSB_RUN_ERR_FILE
 from environment import YCSB_LOAD_OUT_FILE
 from environment import YCSB_LOAD_ERR_FILE
+from environment import YCSB_WRITE_PROPERTY
 
 import clean
 
@@ -76,17 +77,17 @@ def config():
             options_file = 'cassandra.yaml'
             run('''sed -i 's/seeds:.*/seeds: "{0}"/' cassandra.yaml'''.format(
                 ", ".join(env.hosts)))
-            set_option('listen_address:', env.host_string, options_file)
-            set_option('rpc_address:', "", options_file)
-            set_option('max_items_for_large_replication_degree:',
+            set_option('listen_address: ', env.host_string, options_file)
+            set_option('rpc_address: ', "", options_file)
+            set_option('max_items_for_large_replication_degree: ',
                        cassandra_settings.max_items_for_large_replication_degree, options_file)
-            set_option('large_replication_degree:',
+            set_option('large_replication_degree: ',
                        cassandra_settings.large_replication_degree, options_file)
-            set_option('ignore_non_local:',
+            set_option('ignore_non_local: ',
                        cassandra_settings.ignore_non_local, options_file)
-            set_option('select_random_node:',
+            set_option('select_random_node: ',
                        cassandra_settings.select_random_node, options_file)
-            set_option('data_placement_rounds_duration:',
+            set_option('data_placement_rounds_duration: ',
                        cassandra_settings.data_placement_rounds_duration, options_file)
             if not cassandra_settings.debug_logs:
                 run("sed -i 's/DEBUG/INFO/' logback.xml")
@@ -95,9 +96,13 @@ def config():
                        cassandra_settings.operationcount, 'workloadb')
             set_option('recordcount=',
                        cassandra_settings.recordcount, 'workloadb')
+            set_option('readproportion=',
+                       cassandra_settings.readproportion, 'workloadb')
+            set_option('updateproportion=',
+                       cassandra_settings.updateproportion, 'workloadb')
 
 def set_option(option, value, file):
-    option_string = 'sed -i "s/^{option}.*/{option} {value}/" {file}'.format(
+    option_string = 'sed -i "s/^{option}.*/{option}{value}/" {file}'.format(
         **locals())
     run(option_string)
 
@@ -156,7 +161,7 @@ def run_ycsb(operation):
     myindex = env.roledefs['ycsbnodes'].index(env.host_string)
     hosts = env.hosts[myindex]
     if operation == 'load':
-        threads = 200
+        threads = 1
         out_file = YCSB_LOAD_OUT_FILE
         err_file = YCSB_LOAD_ERR_FILE
     else:
@@ -165,8 +170,11 @@ def run_ycsb(operation):
         err_file = YCSB_RUN_ERR_FILE
     with cd(YCSB_CODE_DIR):
         try:
+            write_property_str = YCSB_WRITE_PROPERTY
+            write_property_value = cassandra_settings.write_consistency
             with settings(command_timeout=cassandra_settings.timeout):
                 sudo('./bin/ycsb {operation} cassandra-10 -threads {threads} -p host={hosts}'
+                    ' -p {write_property_str}={write_property_value} '
                     ' -P workloads/workloadb -s > {out_file} 2> {err_file}'.format(
                         **locals()))
         except CommandTimeout:

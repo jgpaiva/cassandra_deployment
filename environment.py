@@ -23,6 +23,7 @@ YCSB_RUN_OUT_FILE = "/tmp/run.out"
 YCSB_RUN_ERR_FILE = "/tmp/run.err"
 YCSB_LOAD_OUT_FILE = "/tmp/load.out"
 YCSB_LOAD_ERR_FILE = "/tmp/load.err"
+YCSB_WRITE_PROPERTY = "cassandra.writeconsistencylevel"
 
 _pattern = r"""
      [-+]? # optional sign
@@ -110,6 +111,9 @@ _c['data_placement_rounds_duration'] = 5000
 _c['timeout'] = 60*60
 _c['processing_nodes'] = -1
 _c['ycsb_nodes'] = -1
+_c['write_consistency'] = 'ALL'
+_c['readproportion'] = '0.95'
+_c['updateproportion'] = '0.05'
 
 _c.freeze()
 

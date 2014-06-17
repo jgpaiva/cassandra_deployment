@@ -25,6 +25,8 @@ import jmx
 
 from datetime import datetime as dt
 
+from pprint import pprint
+
 
 @task
 @roles('master')
@@ -33,8 +35,7 @@ def collect():
     execute(collect_results_from_nodes, res_dir)
     out_file = path.join(res_dir, 'settings.out')
     with open(out_file, 'w') as f:
-        f.write(str(cassandra_settings) + "\n")
-
+        pprint(cassandra_settings,f)
 
 @parallel
 def collect_results_from_nodes(res_dir):
