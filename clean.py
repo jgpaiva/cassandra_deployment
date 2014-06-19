@@ -21,6 +21,7 @@ def kill():
     with quiet():
         sudo("killall -9 -q java")
         run("killall -9 -q java")
+        sudo("pkill -f dstat")
 
 @parallel
 def cleankill():

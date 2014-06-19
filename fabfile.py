@@ -224,6 +224,14 @@ def prepare_run():
                         cassandra_settings.max_items_for_large_replication_degree)
             jmx.set_value(SLEEP_TIME_PAR, cassandra_settings.sleep_time)
 
+def start_dstat():
+    with set_nodes(env.roledefs['ycsbnodes']):
+        execute(start_dstat_on,'/tmp/dstat_ycsb')
+    execute(start_dstat_on,'/tmp/dstat_server')
+
+@parallel
+def start_dstat_on(filename):
+    sudo('tmux new-session -d "dstat > {0}"'.format(filename), pty=False)
 
 def benchmark_round():
     print("""\
@@ -244,12 +252,15 @@ def benchmark_round():
     time.sleep(30)
 
     execute(prepare_run)
+    start_dstat()
+    execute(start_check)
     execute(run_ycsb,'run')
+
 
     time.sleep(10)
     with set_nodes(env.hosts + env.roledefs['ycsbnodes']):
-        execute(collect.collect)
         execute(clean.kill)
+        execute(collect.collect)
 
 
 @contextmanager
@@ -276,6 +287,12 @@ def prepare():
 
 @task
 def fork(cmd):
+    with warn_only():
+        run(cmd)
+
+@task
+@parallel
+def par_fork(cmd):
     with warn_only():
         run(cmd)
 

@@ -61,3 +61,5 @@ def collect_results_from_nodes(res_dir):
             for parameter in ['LargeReplSet', 'MyLargeReplSet', 'AllReads', 'AllWrites']:
                 with open(path.join(node_dir, parameter + ".log"), 'a') as f:
                     f.writelines(jmx.get_value(parameter) or [])
+            get('/tmp/dstat_server',node_dir)
+            get('/tmp/dstat_ycsb',node_dir)
