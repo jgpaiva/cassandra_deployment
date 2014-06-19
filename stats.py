@@ -1,19 +1,17 @@
+#!/usr/bin/env python
 """Get statistics
 
 Usage:
-  stats.py
-  stats.py --operations
-  stats.py --top
-  stats.py --check_items
-  stats.py --large_repl
-  stats.py --latency
+  stats.py [help|throughput|operations|top|check_items|large_repl|latency] [<prefix>]
 
 Options:
-  --operations   Calculate per-node operations
-  --check_items  Calculate per-node top items len
-  --top          Calculate per-node top items
-  --large_repl   Calculate number of large_repl items
-  --latency      Calculate average latency
+  help         Show this message
+  throughput   Show total throughput of experiment
+  operations   Calculate per-node operations
+  check_items  Calculate per-node top items len
+  top          Calculate per-node top items
+  large_repl   Calculate number of large_repl items
+  latency      Calculate average latency
 """
 
 from glob import glob
@@ -21,9 +19,14 @@ from docopt import docopt
 
 from environment import numeric_const_pattern
 
-names = ['replication','save']
+names = ['replication','readp']
+names_replace = {'large_replication_degree':'large_repl',
+                 'max_items_for_large_replication_degree':'max_items',
+                 'replication_factor':'repl',
+                 'readproportion':'read',
+                 'updateproportion':'update'}
 
-dirs = glob("results.*")
+
 
 
 def iterdirs(funct):
@@ -39,7 +42,7 @@ def printval(funct):
     def retval(directory):
         relevant_settings = _settings(directory)
         res = funct(directory)
-        print("%s\t%s\t%s" % (relevant_settings,res,directory))
+        print("%s %s %s" % (relevant_settings,res,directory))
     return retval
 
 @iterdirs
@@ -63,10 +66,14 @@ def top(directory):
 @printval
 def latency(directory):
     val = list(_latency(directory))
-    return (int(sum(i[0] for i in val)/len(val)),
-            int(sum(i[1] for i in val)/len(val)),
-            int(sum(i[2] for i in val)/len(val)),
-            int(sum(i[3] for i in val)/len(val)))
+    retval = list()
+    for j in range(4):
+        try:
+            retval.append(int(sum(i[j] for i in val)/len(val)))
+        except TypeError:
+            retval.append(None)
+    return retval
+
 
 @iterdirs
 @printval
@@ -77,15 +84,16 @@ def check_items(directory):
 def throughput(directory):
     relevant_settings = _settings(directory)
 
+    throughputs = list(int(i) for i in _throughputs(directory))
     try:
-        throughput = sum(_throughputs(directory))
+        throughput = sum(throughputs)
     except:
         throughput = "N/A"
 
     try:
-        print("%s\t%.0f %s" % (relevant_settings,throughput,directory))
+        print("%s %.0f %s %s" % (relevant_settings,throughput,throughputs,directory))
     except TypeError:
-        print("%s\t%s %s" % (relevant_settings,throughput,directory))
+        print("%s %s %s %s" % (relevant_settings,throughput,throughputs,directory))
 
 def _throughputs(directory):
     for run_out in glob(directory+"/*/run.out"):
@@ -95,18 +103,21 @@ def _throughputs(directory):
 
 def _latency(directory):
     for run_out in glob(directory+"/*/run.out"):
-        with open(run_out,'r') as f:
-            string = filter(lambda x: x.startswith("[UP") and "AverageLatency" in x,f)
-            avg_update = get_last_number(string[0])
-        with open(run_out,'r') as f:
-            string = filter(lambda x: x.startswith("[UP") and "95thPercentileLatency" in x,f)
-            ninety_update = get_last_number(string[0])
-        with open(run_out,'r') as f:
-            string = filter(lambda x: x.startswith("[READ") and "AverageLatency" in x,f)
-            avg_read = get_last_number(string[0])
-        with open(run_out,'r') as f:
-            string = filter(lambda x: x.startswith("[READ") and "99thPercentileLatency" in x,f)
-            ninety_read = get_last_number(string[0])
+        def get_lat(str1, str2):
+            try:
+                string = filter(lambda x: x.startswith(str1) and str2 in x,f)
+                return  get_last_number(string[0])
+            except IndexError:
+                return None
+
+        with open(run_out,'r') as file_iter:
+            f = file_iter.readlines()
+
+        avg_update = get_lat('[UPDATE','AverageLatency')
+        ninety_update = get_lat('[UPDATE','95thPercentileLatency')
+        avg_read = get_lat('[READ','AverageLatency')
+        ninety_read = get_lat('[READ','95thPercentileLatency')
+
         yield (avg_update,ninety_update,avg_read,ninety_read)
 
 def _large_repl(directory):
@@ -141,8 +152,8 @@ def _settings(directory):
         settings = eval(f.read())
 
     keys = filter(lambda x: any(name in x for name in names), settings)
-    relevant_settings = "\t".join(
-        "%s:%s" % (x, settings[x]) for x in keys)
+    relevant_settings = " ".join(
+        "%s:%s" % (names_replace[x], str(settings[x]).ljust(2)) for x in keys)
     return relevant_settings
 
 def get_last_number(string):
@@ -151,15 +162,23 @@ def get_last_number(string):
 
 if __name__ == '__main__':
     arguments = docopt(__doc__, version='1.0')
-    if arguments["--operations"]:
-        operations()
-    elif arguments["--top"]:
-        top()
-    elif arguments["--check_items"]:
-        check_items()
-    elif arguments['--large_repl']:
-        large_repl()
-    elif arguments['--latency']:
-        latency()
+    prefix = arguments['<prefix>']
+    if prefix:
+        dirs = glob(prefix+"/results.*")
     else:
+        dirs = glob("results.*")
+
+    if arguments["operations"]:
+        operations()
+    elif arguments["top"]:
+        top()
+    elif arguments["check_items"]:
+        check_items()
+    elif arguments['large_repl']:
+        large_repl()
+    elif arguments['latency']:
+        latency()
+    elif arguments['throughput']:
         throughput()
+    else:
+        print(__doc__)
