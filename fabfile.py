@@ -39,6 +39,8 @@ from environment import YCSB_RUN_ERR_FILE
 from environment import YCSB_LOAD_OUT_FILE
 from environment import YCSB_LOAD_ERR_FILE
 from environment import YCSB_WRITE_PROPERTY
+from environment import DSTAT_SERVER
+from environment import DSTAT_YCSB
 
 import clean
 
@@ -125,7 +127,7 @@ create table ycsb.usertable (
       field6 varchar,
       field7 varchar,
       field8 varchar,
-      field9 varchar);
+      field9 varchar) WITH read_repair_chance=0;
 EOF
 ''')
 
@@ -145,7 +147,7 @@ def start():
                 print('Starting cassandra failed at {0}. Retry {1}.'.format(
                     env.host_string, i))
         else:
-            abort('starting cassandra failed at node {0}'.format(
+            abort('starting cassandra failed at node {0}.'.format(
                 env.host_string))
 
 
@@ -159,7 +161,8 @@ def start_check():
 @roles('ycsbnodes')
 def run_ycsb(operation):
     myindex = env.roledefs['ycsbnodes'].index(env.host_string)
-    hosts = env.hosts[myindex]
+    hosts = " ".join(env.hosts)
+    hosts = '"' + hosts + '"'
     if operation == 'load':
         threads = 1
         out_file = YCSB_LOAD_OUT_FILE
@@ -192,6 +195,7 @@ def setup_environment():
 
         execute(clean.state)
         execute(clean.logs)
+        prepare()
 
 
 @parallel
@@ -226,12 +230,12 @@ def prepare_run():
 
 def start_dstat():
     with set_nodes(env.roledefs['ycsbnodes']):
-        execute(start_dstat_on,'/tmp/dstat_ycsb')
-    execute(start_dstat_on,'/tmp/dstat_server')
+        execute(start_dstat_on,DSTAT_YCSB)
+    execute(start_dstat_on,DSTAT_SERVER)
 
 @parallel
 def start_dstat_on(filename):
-    sudo('tmux new-session -d "dstat > {0}"'.format(filename), pty=False)
+    sudo('tmux new-session -d "dstat -cdngyt --output {0} > /dev/null"'.format(filename), pty=False)
 
 def benchmark_round():
     print("""\
@@ -259,8 +263,8 @@ def benchmark_round():
 
     time.sleep(10)
     with set_nodes(env.hosts + env.roledefs['ycsbnodes']):
-        execute(clean.kill)
         execute(collect.collect)
+        execute(clean.kill)
 
 
 @contextmanager
@@ -276,6 +280,8 @@ def upload_libs():
     put(local_path='lib/*', remote_path='~/')
 
 
+@task
+@roles('master')
 def prepare():
     with set_nodes(env.hosts + env.roledefs['ycsbnodes']):
         execute(upload_libs)
@@ -320,7 +326,11 @@ def benchmark():
 ********************************************************************
 *                         benchmark start                          *
 ********************************************************************""")
-    for should_prepare in bench.configs():
+    configs = bench.configs()
+    should_prepare = next(configs)
+    if should_prepare:
+        prepare()
+    for should_prepare in configs:
         if should_prepare:
             prepare()
         benchmark_round()
