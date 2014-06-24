@@ -15,6 +15,8 @@ from environment import YCSB_RUN_OUT_FILE
 from environment import YCSB_RUN_ERR_FILE
 from environment import YCSB_LOAD_OUT_FILE
 from environment import YCSB_LOAD_ERR_FILE
+from environment import DSTAT_SERVER
+from environment import DSTAT_YCSB
 
 from os import path
 
@@ -46,8 +48,11 @@ def collect_results_from_nodes(res_dir):
         with hide('everything'):
             for i in [YCSB_RUN_OUT_FILE, YCSB_RUN_ERR_FILE,
                     YCSB_LOAD_OUT_FILE, YCSB_LOAD_ERR_FILE]:
+                print("getting {0} for node {1}".format(i,env.host_string))
                 get(i, node_dir)
+            print("getting {0} for node {1}".format('conf',env.host_string))
             get(path.join(CODE_DIR, 'conf'), node_dir)
+            print("getting {0} for node {1}".format('log file',env.host_string))
             get(LOG_FILE, node_dir)
 
             git_status = {}
@@ -56,10 +61,13 @@ def collect_results_from_nodes(res_dir):
                     out = run("git log -n 1", pty=False)
                     git_status[folder] = out
             with open(path.join(node_dir, "git_status.out"), 'w') as f:
+                print("getting {0} for node {1}".format('git',env.host_string))
                 f.write(str(git_status))
 
             for parameter in ['LargeReplSet', 'MyLargeReplSet', 'AllReads', 'AllWrites']:
                 with open(path.join(node_dir, parameter + ".log"), 'a') as f:
+                    print("getting {0} for node {1}".format(parameter,env.host_string))
                     f.writelines(jmx.get_value(parameter) or [])
-            get('/tmp/dstat_server',node_dir)
-            get('/tmp/dstat_ycsb',node_dir)
+            print("getting {0} for node {1}".format('dstat',env.host_string))
+            get(DSTAT_SERVER,node_dir)
+            get(DSTAT_YCSB,node_dir)

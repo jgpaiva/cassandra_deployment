@@ -13,6 +13,8 @@ from environment import YCSB_RUN_OUT_FILE
 from environment import YCSB_RUN_ERR_FILE
 from environment import YCSB_LOAD_OUT_FILE
 from environment import YCSB_LOAD_ERR_FILE
+from environment import DSTAT_SERVER
+from environment import DSTAT_YCSB
 
 
 @parallel
@@ -39,6 +41,7 @@ def logs():
         for i in [YCSB_RUN_OUT_FILE, YCSB_RUN_ERR_FILE,
                   YCSB_LOAD_OUT_FILE, YCSB_LOAD_ERR_FILE]:
             sudo("rm {0}".format(i))
+        sudo("rm -f {0} {1}".format(DSTAT_SERVER,DSTAT_YCSB))
 
 
 @parallel
