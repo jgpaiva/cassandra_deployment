@@ -1,33 +1,23 @@
 #!/usr/bin/env python
-"""Get statistics
-
-Usage:
-  stats.py [help|throughput|operations|top|check_items|large_repl|latency] [<prefix>]
-
-Options:
-  help         Show this message
-  throughput   Show total throughput of experiment
-  operations   Calculate per-node operations
-  check_items  Calculate per-node top items len
-  top          Calculate per-node top items
-  large_repl   Calculate number of large_repl items
-  latency      Calculate average latency
-"""
-
 from glob import glob
 from docopt import docopt
+import csv
 
 from environment import numeric_const_pattern
 
-names = ['replication','readp']
+names = ['replication','threads','sleep']
 names_replace = {'large_replication_degree':'large_repl',
                  'max_items_for_large_replication_degree':'max_items',
                  'replication_factor':'repl',
                  'readproportion':'read',
-                 'updateproportion':'update'}
+                 'updateproportion':'update',
+                 'sleep_time':'pi',
+                 'threads':'t'}
 
-
-
+options = {}
+def register_funct(funct):
+    options[funct.__name__] = funct
+    return funct
 
 def iterdirs(funct):
     def retval():
@@ -36,6 +26,7 @@ def iterdirs(funct):
                 funct(directory)
             except IOError:
                 print "Could not read files for %s" % directory
+    retval.__name__=funct.__name__
     return retval
 
 def printval(funct):
@@ -43,8 +34,10 @@ def printval(funct):
         relevant_settings = _settings(directory)
         res = funct(directory)
         print("%s %s %s" % (relevant_settings,res,directory))
+    retval.__name__=funct.__name__
     return retval
 
+@register_funct
 @iterdirs
 @printval
 def operations(directory):
@@ -52,16 +45,27 @@ def operations(directory):
     val = [[int(i[j]) for i in val] for j in range(2)]
     return [(sum(i), i) for i in val]
 
+@register_funct
+@iterdirs
+@printval
+def operations_issued(directory):
+    val = list(_operations_issued(directory))
+    val = [[int(i[j]) for i in val] for j in range(2)]
+    return [(sum(i), i) for i in val]
+
+@register_funct
 @iterdirs
 @printval
 def large_repl(directory):
     return list(_large_repl(directory))
 
+@register_funct
 @iterdirs
 @printval
 def top(directory):
     return list(_top(directory,5))
 
+@register_funct
 @iterdirs
 @printval
 def latency(directory):
@@ -75,25 +79,93 @@ def latency(directory):
     return retval
 
 
+@register_funct
 @iterdirs
 @printval
 def check_items(directory):
     return list(_check_items(directory))
 
+@register_funct
+@iterdirs
+@printval
+def idle_cpu(directory):
+    return _min_max_csv(directory,2,False)
+
+@register_funct
+@iterdirs
+@printval
+def disk(directory):
+    read = _min_max_csv(directory,6)
+    write = _min_max_csv(directory,7)
+    return "r:" + str(read) +" w:" + str(write)
+
+@register_funct
+@iterdirs
+@printval
+def net(directory):
+    in_ = _min_max_csv(directory,8)
+    out = _min_max_csv(directory,9)
+    return "in:" + str(in_) +" out:" + str(out)
+
+def _min_max_csv(directory,index,byte_format=True):
+    retval = []
+    for glob_pattern in [directory+"/*/dstat_server.csv",directory+"/*/dstat_ycsb.csv"]:
+        val = list(_average_csv_column(glob_pattern,index))
+        avg = sum(val)/len(val)
+
+        if byte_format:
+            retval.append(",".join(
+                map(sizeof_fmt,[avg,max(val),min(val)])))
+        else:
+            retval.append(",".join(
+                map(str,[avg,max(val),min(val)])))
+    return ";".join(retval)
+
+def _dstat_filter(reader):
+    CSW_COLUMN = 13
+    for index, row in enumerate(reader):
+        if index < 3:
+            continue
+        all_items = []
+        for item in row:
+            try:
+                all_items.append(float(item))
+            except ValueError:
+                pass
+        if index < 20 or all_items[CSW_COLUMN] >= 500:
+            yield all_items
+        else:
+            return
+
+def _average_csv_column(directory,index):
+    for reader in _read_csvs(directory):
+        all_lines = [float(row[index]) for row in _dstat_filter(reader)]
+        #all_lines = [float(row[index]) for row in reader]
+        yield int(sum(all_lines)/len(all_lines))
+
+def _read_csvs(directory):
+    for file_name in glob(directory):
+        with open(file_name,'r') as f:
+            lines = (i for i in f if not i.startswith('"') and len(i) > 1)
+            reader = csv.reader(lines)
+            yield reader
+
+@register_funct
 @iterdirs
 def throughput(directory):
-    relevant_settings = _settings(directory)
-
-    throughputs = list(int(i) for i in _throughputs(directory))
     try:
-        throughput = sum(throughputs)
+        relevant_settings = _settings(directory)
+
+        throughputs = list(int(i) for i in _throughputs(directory))
+        try:
+            throughput = sum(throughputs)
+        except:
+            throughput = "N/A"
+        throughputs = "["+", ".join(map(sizeof_fmt,throughputs))+"]"
+
+        print("%s %s %s %s" % (relevant_settings, sizeof_fmt(throughput),throughputs,directory))
     except:
-        throughput = "N/A"
-
-    try:
-        print("%s %.0f %s %s" % (relevant_settings,throughput,throughputs,directory))
-    except TypeError:
-        print("%s %s %s %s" % (relevant_settings,throughput,throughputs,directory))
+        print("some error prevented from calculating for directory %s" % (directory))
 
 def _throughputs(directory):
     for run_out in glob(directory+"/*/run.out"):
@@ -135,6 +207,14 @@ def _operations(directory):
                 if operations1 > 0 or operations2 > 0:
                     yield (operations1,operations2)
 
+def _operations_issued(directory):
+    for run_out in glob(directory+"/*/run.out"):
+        with open(run_out,'r') as f:
+            whole_file = f.readlines()
+        updates = int(get_last_number([x for x in whole_file if x.startswith('[UPDATE], Operations')][0]))
+        reads   = int(get_last_number([x for x in whole_file if x.startswith('[READ], Operations')][0]))
+        yield (updates,reads)
+
 def _top(directory,num):
     for filename in glob(directory+"/*/AllReads.log"):
         with open(filename,'r') as f:
@@ -153,32 +233,40 @@ def _settings(directory):
 
     keys = filter(lambda x: any(name in x for name in names), settings)
     relevant_settings = " ".join(
-        "%s:%s" % (names_replace[x], str(settings[x]).ljust(2)) for x in keys)
+        "%s:%s" % (names_replace[x],
+                   str(settings[x]).ljust(2) if x is not 'readproportion'
+                   else str(settings[x]).ljust(5))
+        for x in keys)
     return relevant_settings
 
 def get_last_number(string):
     val = numeric_const_pattern.findall(string)
     return float(val[-1])
 
+def sizeof_fmt(num):
+    for x in ['','K','M','G']:
+        if num < 1000.0 and num > -1000.0:
+            return "%3.1f%s" % (num, x)
+        num /= 1000.0
+    return "%3.1f%s" % (num, 'T')
+
 if __name__ == '__main__':
-    arguments = docopt(__doc__, version='1.0')
+    usage = ("""Get statistics
+
+Usage:
+  stats.py [help|""" + "|".join(options.keys()) + """] [<prefix>]
+""")
+
+    arguments = docopt(usage, version='1.0')
     prefix = arguments['<prefix>']
     if prefix:
         dirs = glob(prefix+"/results.*")
     else:
         dirs = glob("results.*")
 
-    if arguments["operations"]:
-        operations()
-    elif arguments["top"]:
-        top()
-    elif arguments["check_items"]:
-        check_items()
-    elif arguments['large_repl']:
-        large_repl()
-    elif arguments['latency']:
-        latency()
-    elif arguments['throughput']:
-        throughput()
+    for i in options:
+        if arguments[i]:
+            options[i]()
+            break
     else:
-        print(__doc__)
+        print(usage)
