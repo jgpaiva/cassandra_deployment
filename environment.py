@@ -26,6 +26,7 @@ YCSB_LOAD_ERR_FILE = "/tmp/load.err"
 YCSB_WRITE_PROPERTY = "cassandra.writeconsistencylevel"
 DSTAT_SERVER = "/tmp/dstat_server.csv"
 DSTAT_YCSB = "/tmp/dstat_ycsb.csv"
+YCSB_SKEW_PROPERTY = "zipfian_constant"
 
 _pattern = r"""
      [-+]? # optional sign
@@ -44,6 +45,7 @@ def init():
     with open(SLAVES_FILE, 'r') as f:
         env.hosts = [line[:-1] for line in f]
 
+    env.roledefs['all'] = env.hosts
     env.roledefs['master'] = [env.hosts[-1]]
     if cassandra_settings.ycsb_nodes is None:
         cassandra_settings.ycsb_nodes = len(env.hosts) / 2
@@ -117,6 +119,7 @@ _c['ycsb_nodes'] = None
 _c['write_consistency'] = 'ALL'
 _c['readproportion'] = '0.95'
 _c['updateproportion'] = '0.05'
+_c['skew'] = '0.99'
 
 _c.freeze()
 

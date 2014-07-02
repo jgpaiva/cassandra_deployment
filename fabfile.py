@@ -41,6 +41,7 @@ from environment import YCSB_LOAD_ERR_FILE
 from environment import YCSB_WRITE_PROPERTY
 from environment import DSTAT_SERVER
 from environment import DSTAT_YCSB
+from environment import YCSB_SKEW_PROPERTY
 
 import clean
 
@@ -127,7 +128,7 @@ create table ycsb.usertable (
       field6 varchar,
       field7 varchar,
       field8 varchar,
-      field9 varchar) WITH read_repair_chance=0;
+      field9 varchar) WITH read_repair_chance=0 AND speculative_retry='NONE';
 EOF
 ''')
 
@@ -164,7 +165,7 @@ def run_ycsb(operation):
     hosts = " ".join(env.hosts)
     hosts = '"' + hosts + '"'
     if operation == 'load':
-        threads = 1
+        threads = min(500,cassandra_settings.recordcount)
         out_file = YCSB_LOAD_OUT_FILE
         err_file = YCSB_LOAD_ERR_FILE
     else:
@@ -175,10 +176,14 @@ def run_ycsb(operation):
         try:
             write_property_str = YCSB_WRITE_PROPERTY
             write_property_value = cassandra_settings.write_consistency
+            skew_property_str = YCSB_SKEW_PROPERTY
+            skew_property_value = cassandra_settings.skew
             with settings(command_timeout=cassandra_settings.timeout):
                 sudo('./bin/ycsb {operation} cassandra-10 -threads {threads} -p host={hosts}'
                     ' -p {write_property_str}={write_property_value} '
-                    ' -P workloads/workloadb -s > {out_file} 2> {err_file}'.format(
+                    ' -p {skew_property_str}={skew_property_value} '
+                    ' -P workloads/workloadb -s'
+                    ' > {out_file} 2> {err_file}'.format(
                         **locals()))
         except CommandTimeout:
             print("[ERROR] YCSB %s failed at node %s due to timeout" % (operation, env.host_string))
@@ -292,15 +297,24 @@ def prepare():
 
 
 @task
+@roles('all')
 def fork(cmd):
     with warn_only():
         run(cmd)
 
 @task
 @parallel
+@roles('all')
 def par_fork(cmd):
     with warn_only():
         run(cmd)
+
+@task
+@parallel
+@roles('all')
+def sudo_par_fork(cmd):
+    with warn_only():
+        sudo(cmd)
 
 
 @task
