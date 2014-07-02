@@ -66,3 +66,5 @@ def git():
 def nodes():
     with cd("~"):
         sudo("rm -rf *")
+    with cd("/tmp/"):
+        sudo("rm -rf *")
