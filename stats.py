@@ -5,14 +5,16 @@ import csv
 
 from environment import numeric_const_pattern
 
-names = ['replication','threads','sleep']
+names = ['replication','threads','sleep','recordcount','skew']
 names_replace = {'large_replication_degree':'large_repl',
                  'max_items_for_large_replication_degree':'max_items',
                  'replication_factor':'repl',
                  'readproportion':'read',
                  'updateproportion':'update',
                  'sleep_time':'pi',
-                 'threads':'t'}
+                 'threads':'t',
+                 'recordcount':'items',
+                 'skew':'s'}
 
 options = {}
 def register_funct(funct):
@@ -48,6 +50,13 @@ def operations(directory):
 @register_funct
 @iterdirs
 @printval
+def runtime(directory):
+    val = list(_runtime(directory))
+    return int(sum(val)/len(val)),val
+
+@register_funct
+@iterdirs
+@printval
 def operations_issued(directory):
     val = list(_operations_issued(directory))
     val = [[int(i[j]) for i in val] for j in range(2)]
@@ -63,7 +72,28 @@ def large_repl(directory):
 @iterdirs
 @printval
 def top(directory):
-    return list(_top(directory,5))
+    gen = _top(directory,5)
+    top_freqs = (",".join(str(x[1]) for x in y) for y in gen if y)
+    return "; ".join(top_freqs)
+
+@register_funct
+@iterdirs
+@printval
+def top_items(directory):
+    gen = _top(directory,5)
+    top_freqs = (",".join(str(x[0]) for x in y) for y in gen if y)
+    return "; ".join(top_freqs)
+
+@register_funct
+@iterdirs
+@printval
+def latency_list(directory):
+    labels = 'u: u95: r: r95:'.split()
+    val = list(_latency(directory))
+    retval = list()
+    for j in range(4):
+        retval.append(labels[j] + ",".join([sizeof_fmt(i[j]) for i in val]))
+    return "; ".join(retval)
 
 @register_funct
 @iterdirs
@@ -90,6 +120,27 @@ def check_items(directory):
 @printval
 def idle_cpu(directory):
     return _min_max_csv(directory,2,False)
+
+@register_funct
+@iterdirs
+@printval
+def idle_cpu_list(directory):
+    retval = []
+    for glob_pattern in [directory+"/*/dstat_server.csv",directory+"/*/dstat_ycsb.csv"]:
+        retval.append(",".join(map(str,_average_csv_column(glob_pattern,2))))
+    return ";".join(retval)
+
+@register_funct
+@iterdirs
+@printval
+def net_list(directory):
+    in_ = []
+    for glob_pattern in [directory+"/*/dstat_server.csv",directory+"/*/dstat_ycsb.csv"]:
+        in_.append(",".join(map(sizeof_fmt,_average_csv_column(glob_pattern,8))))
+    out = []
+    for glob_pattern in [directory+"/*/dstat_server.csv",directory+"/*/dstat_ycsb.csv"]:
+        out.append(",".join(map(sizeof_fmt,_average_csv_column(glob_pattern,9))))
+    return ";".join(in_) + "\t" + ";".join(out)
 
 @register_funct
 @iterdirs
@@ -215,11 +266,19 @@ def _operations_issued(directory):
         reads   = int(get_last_number([x for x in whole_file if x.startswith('[READ], Operations')][0]))
         yield (updates,reads)
 
+def _runtime(directory):
+    for run_out in glob(directory+"/*/run.out"):
+        with open(run_out,'r') as f:
+            whole_file = f.readlines()
+        runtime = int(get_last_number([x for x in whole_file if x.startswith('[OVERALL], RunTime(ms)')][0]))
+        yield runtime
+
 def _top(directory,num):
     for filename in glob(directory+"/*/AllReads.log"):
         with open(filename,'r') as f:
             gen = ((line,int(get_last_number(line))) for line in f if "=" in line)
-            yield [x[0].split('=')[0].strip() for x in sorted(gen, key=lambda x: x[1])[:num]]
+            top_sorted = sorted(gen, key=lambda x: x[1],reverse=True)[:num]
+            yield [(x[0].split('=')[0].strip(),x[1]) for x in top_sorted]
 
 def _check_items(directory):
     for filename in glob(directory+"/*/LargeReplSet.log"):
@@ -244,6 +303,8 @@ def get_last_number(string):
     return float(val[-1])
 
 def sizeof_fmt(num):
+    if num is None:
+        return str(num)
     for x in ['','K','M','G']:
         if num < 1000.0 and num > -1000.0:
             return "%3.1f%s" % (num, x)
