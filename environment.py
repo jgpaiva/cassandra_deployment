@@ -49,7 +49,7 @@ def init():
     env.roledefs['master'] = [env.hosts[-1]]
     if cassandra_settings.ycsb_nodes is None:
         cassandra_settings.ycsb_nodes = len(env.hosts) / 2
-    env.roledefs['ycsbnodes'] = env.hosts[:cassandra_settings.ycsb_nodes]
+    env.roledefs['ycsbnodes'] = env.hosts[cassandra_settings.ignore:cassandra_settings.ycsb_nodes]
     env.hosts = env.hosts[cassandra_settings.ycsb_nodes:]
     cassandra_settings.processing_nodes = len(env.hosts)
 
@@ -120,6 +120,8 @@ _c['write_consistency'] = 'ALL'
 _c['readproportion'] = '0.95'
 _c['updateproportion'] = '0.05'
 _c['skew'] = '0.99'
+_c['cassandra_commit'] = None
+_c['ignore'] = 0
 
 _c.freeze()
 

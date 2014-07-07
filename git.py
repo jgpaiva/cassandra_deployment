@@ -21,19 +21,19 @@ def get_code():
     '''update git'''
     with hide('stdout'):
         if cassandra_settings.run_original:
-            branch = 'cassandra-2.1'
+            branch = 'origin/cassandra-2.1'
         else:
-            branch = 'autoreplicator'
-        for directory, branch in [(CODE_DIR, branch), (YCSB_CODE_DIR, 'master')]:
+            branch = cassandra_settings.cassandra_commit or 'origin/autoreplicator2'
+        for directory, branch in [(CODE_DIR, branch), (YCSB_CODE_DIR, 'origin/master')]:
             _get_code(branch, directory)
 
 
 def _get_code(branch, working_dir):
     with cd(working_dir):
         run("git reset --hard")
-        run_with_retry("git fetch -q origin")
+        run("git checkout .")
+        run_with_retry("git fetch -q -a")
         run("git checkout -q {branch}".format(**locals()))
-        run_with_retry("git pull -f -q origin {branch}".format(**locals()))
 
 
 @parallel

@@ -193,7 +193,7 @@ def run_ycsb(operation):
 @roles('master')
 def setup_environment():
     '''get cassandra ready to run from clean state'''
-    with set_nodes(env.hosts + env.roledefs['ycsbnodes']):
+    with set_nodes(env.roledefs['all']):
         execute(clean.kill)
         execute(clean.nodes)
         execute(git.configure)
@@ -246,7 +246,7 @@ def benchmark_round():
     print("""\
 ******************   Starting Benchmark Round  *********************""")
     print(str(cassandra_settings))
-    with set_nodes(env.hosts + env.roledefs['ycsbnodes']):
+    with set_nodes(env.roledefs['all']):
         execute(empty_and_config_nodes)
 
     execute(start)
@@ -288,7 +288,7 @@ def upload_libs():
 @task
 @roles('master')
 def prepare():
-    with set_nodes(env.hosts + env.roledefs['ycsbnodes']):
+    with set_nodes(env.roledefs['all']):
         execute(upload_libs)
         execute(git.get_code)
         execute(config)

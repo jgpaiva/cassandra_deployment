@@ -63,6 +63,7 @@ def collect_results_from_nodes(res_dir):
             with open(path.join(node_dir, "git_status.out"), 'w') as f:
                 print("getting {0} for node {1}".format('git',env.host_string))
                 f.write(str(git_status))
+                f.write('\n')
 
             for parameter in ['LargeReplSet', 'MyLargeReplSet', 'AllReads', 'AllWrites']:
                 with open(path.join(node_dir, parameter + ".log"), 'a') as f:
