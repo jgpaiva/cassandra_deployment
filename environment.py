@@ -49,8 +49,9 @@ def init():
     env.roledefs['master'] = [env.hosts[-1]]
     if cassandra_settings.ycsb_nodes is None:
         cassandra_settings.ycsb_nodes = len(env.hosts) / 2
-    env.roledefs['ycsbnodes'] = env.hosts[cassandra_settings.ignore:cassandra_settings.ycsb_nodes]
-    env.hosts = env.hosts[cassandra_settings.ycsb_nodes:]
+    env.roledefs['ycsbnodes'] = env.hosts[:cassandra_settings.ycsb_nodes]
+    env.hosts = env.hosts[cassandra_settings.ycsb_nodes +
+                          cassandra_settings.ignore:]
     cassandra_settings.processing_nodes = len(env.hosts)
 
 
@@ -100,7 +101,6 @@ class mydict(dict):
 cassandra_settings = mydict()
 _c = cassandra_settings
 
-_c['run_original'] = False
 _c['max_items_for_large_replication_degree'] = 20
 _c['replication_factor'] = 2
 _c['large_replication_degree'] = 4

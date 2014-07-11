@@ -20,10 +20,7 @@ from os import path
 def get_code():
     '''update git'''
     with hide('stdout'):
-        if cassandra_settings.run_original:
-            branch = 'origin/cassandra-2.1'
-        else:
-            branch = cassandra_settings.cassandra_commit or 'origin/autoreplicator2'
+        branch = cassandra_settings.cassandra_commit or 'origin/autoreplicator2'
         for directory, branch in [(CODE_DIR, branch), (YCSB_CODE_DIR, 'origin/master')]:
             _get_code(branch, directory)
 

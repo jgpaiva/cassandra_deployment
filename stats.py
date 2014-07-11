@@ -5,7 +5,7 @@ import csv
 
 from environment import numeric_const_pattern
 
-names = ['replication','threads','sleep','recordcount','skew']
+names = ['replication','threads','processing']
 names_replace = {'large_replication_degree':'large_repl',
                  'max_items_for_large_replication_degree':'max_items',
                  'replication_factor':'repl',
@@ -14,7 +14,10 @@ names_replace = {'large_replication_degree':'large_repl',
                  'sleep_time':'pi',
                  'threads':'t',
                  'recordcount':'items',
-                 'skew':'s'}
+                 'skew':'s',
+                 'ignore':'i',
+                 'ignore_non_local':'z',
+                 'processing_nodes':'nodes'}
 
 options = {}
 def register_funct(funct):
@@ -216,7 +219,7 @@ def throughput(directory):
 
         print("%s %s %s %s" % (relevant_settings, sizeof_fmt(throughput),throughputs,directory))
     except:
-        print("some error prevented from calculating for directory %s" % (directory))
+        print("error for directory %s" % (directory))
 
 def _throughputs(directory):
     for run_out in glob(directory+"/*/run.out"):
